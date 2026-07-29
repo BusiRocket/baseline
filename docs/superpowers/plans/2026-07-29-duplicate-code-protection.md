@@ -44,10 +44,15 @@ so the 1% threshold has real margin.
     "**/target/**",
     "**/coverage/**"
   ],
-  "reporters": ["console"],
-  "exitCode": 1
+  "reporters": ["console"]
 }
 ```
+
+Erratum: `exitCode` was removed from the canonical config after this plan was
+written. jscpd's `exitCode` overrides its default clone-threshold exit behavior
+with a fixed code, so setting it to `1` fails the gate on any clone found
+regardless of the configured threshold; the gate must stay threshold-driven
+instead.
 
 - Strict repo: no threshold bumps, no ignores added to make a check pass. If a
   check fails, fix the cause.
