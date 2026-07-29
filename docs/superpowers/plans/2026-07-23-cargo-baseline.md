@@ -1,29 +1,51 @@
 # cargo-baseline Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:subagent-driven-development (recommended) or
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `cargo-baseline`, a syn-based structural linter + config scaffolder that enforces the TypeScript-baseline discipline (atomic files, placement, size caps, no inline SQL) on Rust projects, ready to apply to `~/p/vexa`.
+**Goal:** Build `cargo-baseline`, a syn-based structural linter + config
+scaffolder that enforces the TypeScript-baseline discipline (atomic files,
+placement, size caps, no inline SQL) on Rust projects, ready to apply to
+`~/p/vexa`.
 
-**Architecture:** A single Rust crate at `packages/cargo-baseline` exposing a cargo subcommand with `check` (parse all `.rs` with syn on stable, run structural rules + advisory tips, ESLint-style diagnostics, non-zero exit on errors) and `init` (scaffold `baseline.toml`, `clippy.toml`, `rustfmt.toml`, `deny.toml`, toolchain + CI files). Rules are small objects implementing one `Rule` trait; the crate dogfoods its own rules.
+**Architecture:** A single Rust crate at `packages/cargo-baseline` exposing a
+cargo subcommand with `check` (parse all `.rs` with syn on stable, run
+structural rules + advisory tips, ESLint-style diagnostics, non-zero exit on
+errors) and `init` (scaffold `baseline.toml`, `clippy.toml`, `rustfmt.toml`,
+`deny.toml`, toolchain + CI files). Rules are small objects implementing one
+`Rule` trait; the crate dogfoods its own rules.
 
-**Tech Stack:** Rust stable (edition 2024), syn 2 (`full`, `visit`), proc-macro2 (`span-locations`), clap 4 (derive), serde + toml, walkdir, regex.
+**Tech Stack:** Rust stable (edition 2024), syn 2 (`full`, `visit`), proc-macro2
+(`span-locations`), clap 4 (derive), serde + toml, walkdir, regex.
 
 ## Global Constraints
 
-- Spec: `docs/superpowers/specs/2026-07-23-rust-baseline-design.md` — every rule name and threshold comes from there.
-- Defaults (verbatim from spec): `max_file_lines = 150`, `max_trait_methods = 12`, function cap 50 / args 4 / cognitive-complexity 10 (clippy.toml), crate split thresholds 75 files / 8,000 lines.
-- Diagnostics format: `path:line: error[rule-name]: message` (tips: `tip[tip-name]`). Tips NEVER affect exit code.
-- Test exemption: items inside `#[cfg(test)]` modules and files under `tests/` are exempt from `one-primary-unit`, `file-matches-item`, `max-file-lines`.
-- The crate MUST pass its own `cargo baseline check` (dogfood) — structure all source atomically from the start: one primary item per file, inline `#[cfg(test)] mod tests` allowed.
+- Spec: `docs/superpowers/specs/2026-07-23-rust-baseline-design.md` — every rule
+  name and threshold comes from there.
+- Defaults (verbatim from spec): `max_file_lines = 150`,
+  `max_trait_methods = 12`, function cap 50 / args 4 / cognitive-complexity 10
+  (clippy.toml), crate split thresholds 75 files / 8,000 lines.
+- Diagnostics format: `path:line: error[rule-name]: message` (tips:
+  `tip[tip-name]`). Tips NEVER affect exit code.
+- Test exemption: items inside `#[cfg(test)]` modules and files under `tests/`
+  are exempt from `one-primary-unit`, `file-matches-item`, `max-file-lines`.
+- The crate MUST pass its own `cargo baseline check` (dogfood) — structure all
+  source atomically from the start: one primary item per file, inline
+  `#[cfg(test)] mod tests` allowed.
 - All code, docs, commit messages in English. No AI attribution in commits.
-- Commit after every task. Run `cargo test -p cargo-baseline` before every commit.
-- The pnpm monorepo files (modified `package.json`s in git status) are unrelated — never stage them.
+- Commit after every task. Run `cargo test -p cargo-baseline` before every
+  commit.
+- The pnpm monorepo files (modified `package.json`s in git status) are unrelated
+  — never stage them.
 
 ---
 
 ### Task 1: Crate scaffold + root Cargo workspace + CLI skeleton
 
 **Files:**
+
 - Create: `Cargo.toml` (repo root)
 - Create: `packages/cargo-baseline/Cargo.toml`
 - Create: `packages/cargo-baseline/src/main.rs`
@@ -31,7 +53,11 @@
 - Modify: `.gitignore` (add `target/`)
 
 **Interfaces:**
-- Produces: `Cli` enum (clap) with `Check { path: PathBuf }` and `Init { path: PathBuf, ci: bool }`; `main` dispatches to `commands::check::run` / `commands::init::run` (stubs return `Ok(())` until Tasks 12/13).
+
+- Produces: `Cli` enum (clap) with `Check { path: PathBuf }` and
+  `Init { path: PathBuf, ci: bool }`; `main` dispatches to
+  `commands::check::run` / `commands::init::run` (stubs return `Ok(())` until
+  Tasks 12/13).
 
 - [ ] **Step 1: Root workspace file**
 
@@ -126,12 +152,17 @@ fn main() -> anyhow::Result<()> {
 }
 ```
 
-Create stub modules so it compiles: `src/commands/mod.rs` (`pub mod check; pub mod init;`), `src/commands/check.rs` and `src/commands/init.rs` each with a stub (`pub fn run(...) -> anyhow::Result<()> { Ok(()) }`; init takes `(&Path, bool)`), and empty `src/config/mod.rs`, `src/engine/mod.rs`, `src/rules/mod.rs`, `src/tips/mod.rs`.
+Create stub modules so it compiles: `src/commands/mod.rs`
+(`pub mod check; pub mod init;`), `src/commands/check.rs` and
+`src/commands/init.rs` each with a stub
+(`pub fn run(...) -> anyhow::Result<()> { Ok(()) }`; init takes
+`(&Path, bool)`), and empty `src/config/mod.rs`, `src/engine/mod.rs`,
+`src/rules/mod.rs`, `src/tips/mod.rs`.
 
 - [ ] **Step 4: Verify**
 
-Run: `cargo run -p cargo-baseline -- baseline check --help`
-Expected: help text for `check` with `PATH` default `.`.
+Run: `cargo run -p cargo-baseline -- baseline check --help` Expected: help text
+for `check` with `PATH` default `.`.
 
 - [ ] **Step 5: Commit**
 
@@ -145,6 +176,7 @@ git commit -m "feat(cargo-baseline): scaffold crate and CLI skeleton"
 ### Task 2: Engine core — Diagnostic, Severity, FileContext, Rule trait, file walker
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/engine/mod.rs`
 - Create: `packages/cargo-baseline/src/engine/severity.rs`
 - Create: `packages/cargo-baseline/src/engine/diagnostic.rs`
@@ -154,14 +186,21 @@ git commit -m "feat(cargo-baseline): scaffold crate and CLI skeleton"
 - Create: `packages/cargo-baseline/src/engine/is_cfg_test_item.rs`
 
 **Interfaces:**
+
 - Produces (all rules and commands depend on these exact signatures):
   - `Severity { Error, Tip }`
-  - `Diagnostic { path: PathBuf, line: usize, rule: &'static str, severity: Severity, message: String }` + `impl Display` rendering `path:line: error[rule]: message` (or `tip[...]`)
-  - `FileContext { path: PathBuf, source: String, ast: syn::File }` + `FileContext::parse(path, source) -> anyhow::Result<Self>`
+  - `Diagnostic { path: PathBuf, line: usize, rule: &'static str, severity: Severity, message: String }` +
+    `impl Display` rendering `path:line: error[rule]: message` (or `tip[...]`)
+  - `FileContext { path: PathBuf, source: String, ast: syn::File }` +
+    `FileContext::parse(path, source) -> anyhow::Result<Self>`
   - `trait Rule { fn name(&self) -> &'static str; fn check(&self, ctx: &FileContext, cfg: &BaselineConfig) -> Vec<Diagnostic>; }`
-  - `collect_rust_files(src_dir: &Path) -> Vec<PathBuf>` (recursive, `.rs` only, skips `target/`)
-  - `is_cfg_test_item(attrs: &[syn::Attribute]) -> bool` (true for `#[cfg(test)]`)
-- Consumes: `BaselineConfig` — forward-declare in Task 3; for this task use a placeholder `pub struct BaselineConfig;` in `src/config/mod.rs` replaced in Task 3.
+  - `collect_rust_files(src_dir: &Path) -> Vec<PathBuf>` (recursive, `.rs` only,
+    skips `target/`)
+  - `is_cfg_test_item(attrs: &[syn::Attribute]) -> bool` (true for
+    `#[cfg(test)]`)
+- Consumes: `BaselineConfig` — forward-declare in Task 3; for this task use a
+  placeholder `pub struct BaselineConfig;` in `src/config/mod.rs` replaced in
+  Task 3.
 
 - [ ] **Step 1: Write tests (inline `#[cfg(test)]` in each file)**
 
@@ -207,8 +246,8 @@ mod tests {
 
 - [ ] **Step 2: Run tests, verify failure (types missing)**
 
-Run: `cargo test -p cargo-baseline`
-Expected: compile error — types not defined yet.
+Run: `cargo test -p cargo-baseline` Expected: compile error — types not defined
+yet.
 
 - [ ] **Step 3: Implement**
 
@@ -317,12 +356,12 @@ pub fn is_cfg_test_item(attrs: &[syn::Attribute]) -> bool {
 }
 ```
 
-`engine/mod.rs` declares all seven modules (`pub mod ...`). `config/mod.rs` gets placeholder `pub struct BaselineConfig;`.
+`engine/mod.rs` declares all seven modules (`pub mod ...`). `config/mod.rs` gets
+placeholder `pub struct BaselineConfig;`.
 
 - [ ] **Step 4: Run tests, verify pass**
 
-Run: `cargo test -p cargo-baseline`
-Expected: PASS (2 tests).
+Run: `cargo test -p cargo-baseline` Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -336,10 +375,13 @@ git commit -m "feat(cargo-baseline): engine core types and file walker"
 ### Task 3: BaselineConfig — defaults + `baseline.toml` loading
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/config/baseline_config.rs`
-- Modify: `packages/cargo-baseline/src/config/mod.rs` (replace placeholder with `mod baseline_config; pub use baseline_config::BaselineConfig;`)
+- Modify: `packages/cargo-baseline/src/config/mod.rs` (replace placeholder with
+  `mod baseline_config; pub use baseline_config::BaselineConfig;`)
 
 **Interfaces:**
+
 - Produces (exact field names — every rule reads these):
 
 ```rust
@@ -353,7 +395,11 @@ pub struct BaselineConfig {
     pub disabled_tips: Vec<String>,
 }
 ```
-- `BaselineConfig::default()` with the values above; `BaselineConfig::load(dir: &Path) -> anyhow::Result<Self>` reads `<dir>/baseline.toml` if present (serde `#[serde(default)]` per field so a partial file works), else defaults.
+
+- `BaselineConfig::default()` with the values above;
+  `BaselineConfig::load(dir: &Path) -> anyhow::Result<Self>` reads
+  `<dir>/baseline.toml` if present (serde `#[serde(default)]` per field so a
+  partial file works), else defaults.
 
 - [ ] **Step 1: Write failing test** (inline in `baseline_config.rs`)
 
@@ -383,7 +429,10 @@ mod tests {
 }
 ```
 
-Note: `unwrap()` in tests is fine — add `#![cfg_attr(test, allow(clippy::unwrap_used))]`? No: crate-level lint config in Cargo.toml denies it globally; instead add `#[allow(clippy::unwrap_used)]` on each `mod tests`. Use that pattern in ALL test modules in this crate.
+Note: `unwrap()` in tests is fine — add
+`#![cfg_attr(test, allow(clippy::unwrap_used))]`? No: crate-level lint config in
+Cargo.toml denies it globally; instead add `#[allow(clippy::unwrap_used)]` on
+each `mod tests`. Use that pattern in ALL test modules in this crate.
 
 - [ ] **Step 2: Run, verify compile failure** — `cargo test -p cargo-baseline`
 
@@ -436,19 +485,27 @@ impl BaselineConfig {
 
 - [ ] **Step 4: Run tests, verify pass** — `cargo test -p cargo-baseline`
 
-- [ ] **Step 5: Commit** — `git add packages/cargo-baseline && git commit -m "feat(cargo-baseline): baseline.toml config with spec defaults"`
+- [ ] **Step 5: Commit** —
+      `git add packages/cargo-baseline && git commit -m "feat(cargo-baseline): baseline.toml config with spec defaults"`
 
 ---
 
 ### Task 4: Rule `max-file-lines`
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/rules/max_file_lines.rs`
 - Modify: `packages/cargo-baseline/src/rules/mod.rs` (`pub mod max_file_lines;`)
 
 **Interfaces:**
-- Produces: `pub struct MaxFileLines;` implementing `Rule` (name `"max-file-lines"`).
-- Counts lines that are neither blank nor comment-only (line starting with `//` after trim; lines inside `/* */` blocks skipped with a simple depth counter). Emits one Diagnostic at line 1 when count > `cfg.max_file_lines`. Skips files whose path contains a `tests` directory component (walker already only feeds `src/`, but keep the guard).
+
+- Produces: `pub struct MaxFileLines;` implementing `Rule` (name
+  `"max-file-lines"`).
+- Counts lines that are neither blank nor comment-only (line starting with `//`
+  after trim; lines inside `/* */` blocks skipped with a simple depth counter).
+  Emits one Diagnostic at line 1 when count > `cfg.max_file_lines`. Skips files
+  whose path contains a `tests` directory component (walker already only feeds
+  `src/`, but keep the guard).
 
 - [ ] **Step 1: Failing test**
 
@@ -483,7 +540,8 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Run, verify fail** — `cargo test -p cargo-baseline max_file_lines`
+- [ ] **Step 2: Run, verify fail** —
+      `cargo test -p cargo-baseline max_file_lines`
 
 - [ ] **Step 3: Implement**
 
@@ -535,23 +593,38 @@ impl Rule for MaxFileLines {
 }
 ```
 
-Note for implementer: the block-comment counter above is intentionally simple; if the closure-with-mutable-state version fights the borrow checker, extract a plain `fn count_code_lines(source: &str) -> usize` loop inside the same file? NO — atomic rule bans private helpers. Write it as a plain `for` loop inside `check` instead of iterator chains.
+Note for implementer: the block-comment counter above is intentionally simple;
+if the closure-with-mutable-state version fights the borrow checker, extract a
+plain `fn count_code_lines(source: &str) -> usize` loop inside the same file? NO
+— atomic rule bans private helpers. Write it as a plain `for` loop inside
+`check` instead of iterator chains.
 
-- [ ] **Step 4: Run tests, verify pass** — `cargo test -p cargo-baseline max_file_lines`
+- [ ] **Step 4: Run tests, verify pass** —
+      `cargo test -p cargo-baseline max_file_lines`
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): max-file-lines rule"`
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): max-file-lines rule"`
 
 ---
 
 ### Task 5: Rule `one-primary-unit`
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/rules/one_primary_unit.rs`
 - Modify: `packages/cargo-baseline/src/rules/mod.rs`
 
 **Interfaces:**
-- Produces: `pub struct OnePrimaryUnit;` implementing `Rule` (name `"one-primary-unit"`).
-- A "unit" is a top-level `Item::Fn | Item::Struct | Item::Enum | Item::Trait | Item::Type | Item::Union | Item::Macro`(macro_rules). NOT units: `use`, `mod` declarations, `impl`, `const`, `static`, `extern crate`. Items inside `#[cfg(test)]` mods don't count (use `is_cfg_test_item`). >1 unit → one Diagnostic per extra unit (line = unit's span start via `syn::spanned::Spanned` + `proc-macro2::Span::start().line`). Skip `mod.rs`, `lib.rs`, `main.rs` (barrel rule owns those).
+
+- Produces: `pub struct OnePrimaryUnit;` implementing `Rule` (name
+  `"one-primary-unit"`).
+- A "unit" is a top-level
+  `Item::Fn | Item::Struct | Item::Enum | Item::Trait | Item::Type | Item::Union | Item::Macro`(macro_rules).
+  NOT units: `use`, `mod` declarations, `impl`, `const`, `static`,
+  `extern crate`. Items inside `#[cfg(test)]` mods don't count (use
+  `is_cfg_test_item`). >1 unit → one Diagnostic per extra unit (line = unit's
+  span start via `syn::spanned::Spanned` + `proc-macro2::Span::start().line`).
+  Skip `mod.rs`, `lib.rs`, `main.rs` (barrel rule owns those).
 
 - [ ] **Step 1: Failing test**
 
@@ -591,7 +664,8 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Run, verify fail** — `cargo test -p cargo-baseline one_primary_unit`
+- [ ] **Step 2: Run, verify fail** —
+      `cargo test -p cargo-baseline one_primary_unit`
 
 - [ ] **Step 3: Implement**
 
@@ -657,18 +731,27 @@ impl Rule for OnePrimaryUnit {
 
 - [ ] **Step 4: Run tests, verify pass**
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): one-primary-unit rule"`
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): one-primary-unit rule"`
 
 ---
 
 ### Task 6: Rule `no-inline-sql`
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/rules/no_inline_sql.rs`
 - Modify: `packages/cargo-baseline/src/rules/mod.rs`
 
 **Interfaces:**
-- Produces: `pub struct NoInlineSql;` (name `"no-inline-sql"`). Visits every string literal (`syn::visit::Visit` for `syn::LitStr`, which covers raw strings) outside `#[cfg(test)]` mods; flags when the value matches case-insensitive regex `\b(SELECT\s+.+\s+FROM|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|CREATE\s+(TABLE|INDEX|VIEW)|ALTER\s+TABLE|DROP\s+(TABLE|INDEX))\b` (with `(?is)` flags so multi-line SQL matches). Message: "SQL literal in .rs — move to sql/*.sql and load with include_str!".
+
+- Produces: `pub struct NoInlineSql;` (name `"no-inline-sql"`). Visits every
+  string literal (`syn::visit::Visit` for `syn::LitStr`, which covers raw
+  strings) outside `#[cfg(test)]` mods; flags when the value matches
+  case-insensitive regex
+  `\b(SELECT\s+.+\s+FROM|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|CREATE\s+(TABLE|INDEX|VIEW)|ALTER\s+TABLE|DROP\s+(TABLE|INDEX))\b`
+  (with `(?is)` flags so multi-line SQL matches). Message: "SQL literal in .rs —
+  move to sql/*.sql and load with include_str!".
 - Build the regex with `std::sync::LazyLock<Regex>`.
 
 - [ ] **Step 1: Failing test**
@@ -707,7 +790,12 @@ mod tests {
 
 - [ ] **Step 2: Run, verify fail**
 
-- [ ] **Step 3: Implement** — visitor struct implementing `syn::visit::Visit<'ast>` with `visit_lit_str` collecting `(line, ())` matches and `visit_item_mod` early-returning (not recursing) when `is_cfg_test_item(&node.attrs)`. Note `"hello select something"` must NOT match (regex requires `SELECT <cols> FROM`). Line via `lit.span().start().line`.
+- [ ] **Step 3: Implement** — visitor struct implementing
+      `syn::visit::Visit<'ast>` with `visit_lit_str` collecting `(line, ())`
+      matches and `visit_item_mod` early-returning (not recursing) when
+      `is_cfg_test_item(&node.attrs)`. Note `"hello select something"` must NOT
+      match (regex requires `SELECT <cols> FROM`). Line via
+      `lit.span().start().line`.
 
 ```rust
 use std::sync::LazyLock;
@@ -771,22 +859,33 @@ impl Rule for NoInlineSql {
 }
 ```
 
-Dogfood note: `SqlVisitor` is a second item in this file. Our own `one-primary-unit` rule counts `Item::Struct` — `SqlVisitor` would be flagged. Resolution (applies to every rule needing a visitor): the visitor struct goes in its own file `src/rules/no_inline_sql_visitor.rs` exporting `SqlVisitor` (`pub(crate)`), imported by the rule file. Same pattern for later visitors.
+Dogfood note: `SqlVisitor` is a second item in this file. Our own
+`one-primary-unit` rule counts `Item::Struct` — `SqlVisitor` would be flagged.
+Resolution (applies to every rule needing a visitor): the visitor struct goes in
+its own file `src/rules/no_inline_sql_visitor.rs` exporting `SqlVisitor`
+(`pub(crate)`), imported by the rule file. Same pattern for later visitors.
 
 - [ ] **Step 4: Run tests, verify pass**
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): no-inline-sql rule"`
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): no-inline-sql rule"`
 
 ---
 
 ### Task 7: Rule `max-trait-methods`
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/rules/max_trait_methods.rs`
 - Modify: `packages/cargo-baseline/src/rules/mod.rs`
 
 **Interfaces:**
-- Produces: `pub struct MaxTraitMethods;` (name `"max-trait-methods"`). For each top-level `Item::Trait` (not cfg(test)): count items of kind `syn::TraitItem::Fn`. If count > `cfg.max_trait_methods` emit Diagnostic at trait's line: "trait `Store` has 47 methods (max 12) — split into focused traits (interface segregation)".
+
+- Produces: `pub struct MaxTraitMethods;` (name `"max-trait-methods"`). For each
+  top-level `Item::Trait` (not cfg(test)): count items of kind
+  `syn::TraitItem::Fn`. If count > `cfg.max_trait_methods` emit Diagnostic at
+  trait's line: "trait `Store` has 47 methods (max 12) — split into focused
+  traits (interface segregation)".
 
 - [ ] **Step 1: Failing test**
 
@@ -818,22 +917,35 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Run, verify fail** — then **Step 3: Implement** (iterate `ctx.ast.items`, match `Item::Trait`, skip `is_cfg_test_item`, count `TraitItem::Fn`, compare, emit). Same shape as Task 5's loop; single item `MaxTraitMethods` in file.
+- [ ] **Step 2: Run, verify fail** — then **Step 3: Implement** (iterate
+      `ctx.ast.items`, match `Item::Trait`, skip `is_cfg_test_item`, count
+      `TraitItem::Fn`, compare, emit). Same shape as Task 5's loop; single item
+      `MaxTraitMethods` in file.
 
 - [ ] **Step 4: Run tests, verify pass**
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): max-trait-methods rule"`
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): max-trait-methods rule"`
 
 ---
 
 ### Task 8: Rule `barrel-only-mod`
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/rules/barrel_only_mod.rs`
 - Modify: `packages/cargo-baseline/src/rules/mod.rs`
 
 **Interfaces:**
-- Produces: `pub struct BarrelOnlyMod;` (name `"barrel-only-mod"`). Applies ONLY to files named `mod.rs` or `lib.rs`. Allowed top-level items: `Item::Mod` (declaration only, `content: None`, or `#[cfg(test)]` mods with bodies), `Item::Use`, `Item::ExternCrate`. Carve-outs: in `lib.rs` one `Item::Fn` named `run` is allowed (Tauri entrypoint); `Item::Macro` calls whose path ends in `generate_handler`/`uniffi` style are NOT special-cased (v1 keeps it simple: only `run`). Everything else → Diagnostic per item: "logic in barrel file — mod.rs/lib.rs hold only mod declarations and re-exports".
+
+- Produces: `pub struct BarrelOnlyMod;` (name `"barrel-only-mod"`). Applies ONLY
+  to files named `mod.rs` or `lib.rs`. Allowed top-level items: `Item::Mod`
+  (declaration only, `content: None`, or `#[cfg(test)]` mods with bodies),
+  `Item::Use`, `Item::ExternCrate`. Carve-outs: in `lib.rs` one `Item::Fn` named
+  `run` is allowed (Tauri entrypoint); `Item::Macro` calls whose path ends in
+  `generate_handler`/`uniffi` style are NOT special-cased (v1 keeps it simple:
+  only `run`). Everything else → Diagnostic per item: "logic in barrel file —
+  mod.rs/lib.rs hold only mod declarations and re-exports".
 
 - [ ] **Step 1: Failing test**
 
@@ -878,22 +990,35 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Run, verify fail** — then **Step 3: Implement**: match on file stem; loop items; allow-list match; `lib.rs` + `Item::Fn` with `sig.ident == "run"` → allowed; also allow inline `mod` with content when `is_cfg_test_item`. Emit with item span line.
+- [ ] **Step 2: Run, verify fail** — then **Step 3: Implement**: match on file
+      stem; loop items; allow-list match; `lib.rs` + `Item::Fn` with
+      `sig.ident == "run"` → allowed; also allow inline `mod` with content when
+      `is_cfg_test_item`. Emit with item span line.
 
 - [ ] **Step 4: Run tests, verify pass**
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): barrel-only-mod rule"`
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): barrel-only-mod rule"`
 
 ---
 
 ### Task 9: Rule `tauri-command-placement`
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/rules/tauri_command_placement.rs`
 - Modify: `packages/cargo-baseline/src/rules/mod.rs`
 
 **Interfaces:**
-- Produces: `pub struct TauriCommandPlacement;` (name `"tauri-command-placement"`). Detect top-level fns with an attribute whose path is `tauri::command` (`attr.path().segments` == ["tauri","command"]) or `command` when file already imports `tauri::command` (keep v1 simple: match full path `tauri::command` only — dj-rocket uses `#[tauri::command]`, verified). If such a fn exists and the file path does NOT contain a `commands` directory component → Diagnostic: "#[tauri::command] outside commands/ — one command per file under commands/, thin wrapper delegating to domain fn".
+
+- Produces: `pub struct TauriCommandPlacement;` (name
+  `"tauri-command-placement"`). Detect top-level fns with an attribute whose
+  path is `tauri::command` (`attr.path().segments` == ["tauri","command"]) or
+  `command` when file already imports `tauri::command` (keep v1 simple: match
+  full path `tauri::command` only — dj-rocket uses `#[tauri::command]`,
+  verified). If such a fn exists and the file path does NOT contain a `commands`
+  directory component → Diagnostic: "#[tauri::command] outside commands/ — one
+  command per file under commands/, thin wrapper delegating to domain fn".
 
 - [ ] **Step 1: Failing test**
 
@@ -923,44 +1048,75 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2–4:** Run fail → implement (iterate items, `Item::Fn`, check attrs paths, check `ctx.path.components()` for a `commands` component) → run pass.
+- [ ] **Step 2–4:** Run fail → implement (iterate items, `Item::Fn`, check attrs
+      paths, check `ctx.path.components()` for a `commands` component) → run
+      pass.
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): tauri-command-placement rule"`
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): tauri-command-placement rule"`
 
 ---
 
 ### Task 10: Rule `file-matches-item` (+ grab-bag ban)
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/rules/file_matches_item.rs`
 - Create: `packages/cargo-baseline/src/rules/to_snake_case.rs`
 - Modify: `packages/cargo-baseline/src/rules/mod.rs`
 
 **Interfaces:**
-- Produces: `pub struct FileMatchesItem;` (name `"file-matches-item"`) and `pub fn to_snake_case(name: &str) -> String` (own file — atomic rule; `UserRepository` → `user_repository`, already-snake stays unchanged).
-- Logic: skip `mod.rs`/`lib.rs`/`main.rs`/`build.rs`. Banned stems `utils|helpers|misc|common` → Diagnostic "grab-bag file name". Else find the FIRST unit (same unit kinds as Task 5, skipping cfg(test)); if present and `to_snake_case(unit_name) != stem` → Diagnostic "file `x.rs` does not match its primary item `Y` (expected `y.rs`)". Files with zero units (pure re-export or const-only): no finding.
 
-- [ ] **Step 1: Failing tests** — for `to_snake_case` (in its file): `assert_eq!(to_snake_case("UserRepository"), "user_repository");`, `assert_eq!(to_snake_case("build_draft_prompt"), "build_draft_prompt");`, `assert_eq!(to_snake_case("HTTPServer"), "http_server");`. For the rule: `utils.rs` flagged; `user_repository.rs` with `pub struct UserRepository` passes; `store.rs` with `pub struct SqliteStore` flagged.
+- Produces: `pub struct FileMatchesItem;` (name `"file-matches-item"`) and
+  `pub fn to_snake_case(name: &str) -> String` (own file — atomic rule;
+  `UserRepository` → `user_repository`, already-snake stays unchanged).
+- Logic: skip `mod.rs`/`lib.rs`/`main.rs`/`build.rs`. Banned stems
+  `utils|helpers|misc|common` → Diagnostic "grab-bag file name". Else find the
+  FIRST unit (same unit kinds as Task 5, skipping cfg(test)); if present and
+  `to_snake_case(unit_name) != stem` → Diagnostic "file `x.rs` does not match
+  its primary item `Y` (expected `y.rs`)". Files with zero units (pure re-export
+  or const-only): no finding.
 
-- [ ] **Step 2–4:** Run fail → implement → run pass. `to_snake_case`: iterate chars, on uppercase push `_` when previous char is lowercase/digit OR next char is lowercase (handles acronym runs), push lowercased char.
+- [ ] **Step 1: Failing tests** — for `to_snake_case` (in its file):
+      `assert_eq!(to_snake_case("UserRepository"), "user_repository");`,
+      `assert_eq!(to_snake_case("build_draft_prompt"), "build_draft_prompt");`,
+      `assert_eq!(to_snake_case("HTTPServer"), "http_server");`. For the rule:
+      `utils.rs` flagged; `user_repository.rs` with `pub struct UserRepository`
+      passes; `store.rs` with `pub struct SqliteStore` flagged.
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): file-matches-item rule and snake_case helper"`
+- [ ] **Step 2–4:** Run fail → implement → run pass. `to_snake_case`: iterate
+      chars, on uppercase push `_` when previous char is lowercase/digit OR next
+      char is lowercase (handles acronym runs), push lowercased char.
+
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): file-matches-item rule and snake_case helper"`
 
 ---
 
 ### Task 11: Rule `lints-inheritance` + crate-level scan (`CrateInfo`)
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/engine/crate_info.rs`
 - Create: `packages/cargo-baseline/src/rules/lints_inheritance.rs`
 - Modify: `packages/cargo-baseline/src/engine/mod.rs`, `src/rules/mod.rs`
 
 **Interfaces:**
-- Produces:
-  - `pub struct CrateInfo { pub root: PathBuf, pub manifest: toml::Value, pub is_workspace_root: bool, pub member_roots: Vec<PathBuf> }` with `CrateInfo::load(dir: &Path) -> anyhow::Result<Self>` (parses `Cargo.toml`; expands `workspace.members` globs manually: for each member pattern with `*`, list matching dirs containing `Cargo.toml`).
-  - `pub fn check_lints_inheritance(info: &CrateInfo) -> Vec<Diagnostic>` — NOT the `Rule` trait (works on manifests, not `.rs` files): if root manifest has `workspace.lints`, every member manifest must contain `lints.workspace = true`; missing → Diagnostic (line 1 of that member's Cargo.toml, rule `"lints-inheritance"`): "member does not inherit workspace lints — add `[lints]\nworkspace = true`".
 
-- [ ] **Step 1: Failing test** (use temp dirs, write minimal root + member Cargo.tomls, assert diagnostic present/absent).
+- Produces:
+  - `pub struct CrateInfo { pub root: PathBuf, pub manifest: toml::Value, pub is_workspace_root: bool, pub member_roots: Vec<PathBuf> }`
+    with `CrateInfo::load(dir: &Path) -> anyhow::Result<Self>` (parses
+    `Cargo.toml`; expands `workspace.members` globs manually: for each member
+    pattern with `*`, list matching dirs containing `Cargo.toml`).
+  - `pub fn check_lints_inheritance(info: &CrateInfo) -> Vec<Diagnostic>` — NOT
+    the `Rule` trait (works on manifests, not `.rs` files): if root manifest has
+    `workspace.lints`, every member manifest must contain
+    `lints.workspace = true`; missing → Diagnostic (line 1 of that member's
+    Cargo.toml, rule `"lints-inheritance"`): "member does not inherit workspace
+    lints — add `[lints]\nworkspace = true`".
+
+- [ ] **Step 1: Failing test** (use temp dirs, write minimal root + member
+      Cargo.tomls, assert diagnostic present/absent).
 
 ```rust
 #[test]
@@ -979,13 +1135,15 @@ fn flags_member_missing_lints_inheritance() {
 
 - [ ] **Step 2–4:** Run fail → implement → run pass.
 
-- [ ] **Step 5: Commit** — `git commit -am "feat(cargo-baseline): crate scanning and lints-inheritance rule"`
+- [ ] **Step 5: Commit** —
+      `git commit -am "feat(cargo-baseline): crate scanning and lints-inheritance rule"`
 
 ---
 
 ### Task 12: Tips engine (4 tips) + `check` command wiring
 
 **Files:**
+
 - Create: `packages/cargo-baseline/src/tips/rusqlite_tip.rs`
 - Create: `packages/cargo-baseline/src/tips/anyhow_in_lib_tip.rs`
 - Create: `packages/cargo-baseline/src/tips/unwrap_density_tip.rs`
@@ -994,15 +1152,36 @@ fn flags_member_missing_lints_inheritance() {
 - Rewrite: `packages/cargo-baseline/src/commands/check.rs`
 
 **Interfaces:**
-- Consumes: `CrateInfo`, `BaselineConfig`, all `Rule` impls, `collect_rust_files`, `FileContext`.
-- Produces — each tip is `pub fn <name>_tip(info: &CrateInfo, files: &[FileContext], cfg: &BaselineConfig) -> Vec<Diagnostic>` (Severity::Tip):
-  - `rusqlite_tip`: manifest lists `rusqlite` in `[dependencies]` → tip at Cargo.toml line 1: "rusqlite detected — consider a typed data layer (sqlx compile-time-checked queries via query_file_as!, or SeaORM); hand-rolled Row→struct mappings become generated/typed code".
-  - `anyhow_in_lib_tip`: crate has `src/lib.rs` AND no `src/main.rs` AND `anyhow` in `[dependencies]` → tip: "anyhow in a library crate — prefer typed errors (thiserror); keep anyhow at binary edges".
-  - `unwrap_density_tip`: total count of `.unwrap()` + `.expect(` substring occurrences across non-test sources > `cfg.unwrap_density` → tip: "N unwrap()/expect() calls — consolidate errors with thiserror".
-  - `oversized_crate_tip`: file count > `cfg.crate_max_files` OR total line count > `cfg.crate_max_lines` → tip: "crate has N files / M lines — consider splitting into workspace crates (crates/ flat layout)".
-- `check::run(path)`: load `CrateInfo` + `BaselineConfig::load`; determine crate roots (workspace → members, else self); for each root: collect files under `src/`, parse (parse failures are reported as errors, not panics), run all 7 file rules (respect `cfg.disabled_rules` by rule name), run `check_lints_inheritance`, run tips (respect `disabled_tips`). Print all diagnostics sorted by path then line (errors first, then a blank line and tips). Summary line: `baseline: N errors, M tips`. Exit: `std::process::exit(1)` when N > 0 (return `Ok(())` otherwise).
 
-- [ ] **Step 1: Failing integration test** — Create `packages/cargo-baseline/tests/check_integration.rs`:
+- Consumes: `CrateInfo`, `BaselineConfig`, all `Rule` impls,
+  `collect_rust_files`, `FileContext`.
+- Produces — each tip is
+  `pub fn <name>_tip(info: &CrateInfo, files: &[FileContext], cfg: &BaselineConfig) -> Vec<Diagnostic>`
+  (Severity::Tip):
+  - `rusqlite_tip`: manifest lists `rusqlite` in `[dependencies]` → tip at
+    Cargo.toml line 1: "rusqlite detected — consider a typed data layer (sqlx
+    compile-time-checked queries via query_file_as!, or SeaORM); hand-rolled
+    Row→struct mappings become generated/typed code".
+  - `anyhow_in_lib_tip`: crate has `src/lib.rs` AND no `src/main.rs` AND
+    `anyhow` in `[dependencies]` → tip: "anyhow in a library crate — prefer
+    typed errors (thiserror); keep anyhow at binary edges".
+  - `unwrap_density_tip`: total count of `.unwrap()` + `.expect(` substring
+    occurrences across non-test sources > `cfg.unwrap_density` → tip: "N
+    unwrap()/expect() calls — consolidate errors with thiserror".
+  - `oversized_crate_tip`: file count > `cfg.crate_max_files` OR total line
+    count > `cfg.crate_max_lines` → tip: "crate has N files / M lines — consider
+    splitting into workspace crates (crates/ flat layout)".
+- `check::run(path)`: load `CrateInfo` + `BaselineConfig::load`; determine crate
+  roots (workspace → members, else self); for each root: collect files under
+  `src/`, parse (parse failures are reported as errors, not panics), run all 7
+  file rules (respect `cfg.disabled_rules` by rule name), run
+  `check_lints_inheritance`, run tips (respect `disabled_tips`). Print all
+  diagnostics sorted by path then line (errors first, then a blank line and
+  tips). Summary line: `baseline: N errors, M tips`. Exit:
+  `std::process::exit(1)` when N > 0 (return `Ok(())` otherwise).
+
+- [ ] **Step 1: Failing integration test** — Create
+      `packages/cargo-baseline/tests/check_integration.rs`:
 
 ```rust
 use std::process::Command;
@@ -1023,11 +1202,17 @@ fn check_flags_fixture_project() {
 }
 ```
 
-Create fixture `tests/fixtures/bad-crate/`: `Cargo.toml` (`[package] name="bad-crate" version="0.1.0" edition="2021"` + `[dependencies] rusqlite = "0.40"`), `src/lib.rs` (`pub mod store;`), `src/store.rs` with two pub fns, one containing `"SELECT id FROM t"`.
+Create fixture `tests/fixtures/bad-crate/`: `Cargo.toml`
+(`[package] name="bad-crate" version="0.1.0" edition="2021"` +
+`[dependencies] rusqlite = "0.40"`), `src/lib.rs` (`pub mod store;`),
+`src/store.rs` with two pub fns, one containing `"SELECT id FROM t"`.
 
-- [ ] **Step 2: Run, verify fail** — `cargo test -p cargo-baseline --test check_integration`
+- [ ] **Step 2: Run, verify fail** —
+      `cargo test -p cargo-baseline --test check_integration`
 
-- [ ] **Step 3: Implement tips + check command.** Tip names for `disabled_tips` matching and diagnostic rule field: `"rusqlite"`, `"anyhow-in-lib"`, `"unwrap-density"`, `"oversized-crate"`. The rules registry in `check.rs`:
+- [ ] **Step 3: Implement tips + check command.** Tip names for `disabled_tips`
+      matching and diagnostic rule field: `"rusqlite"`, `"anyhow-in-lib"`,
+      `"unwrap-density"`, `"oversized-crate"`. The rules registry in `check.rs`:
 
 ```rust
 let rules: Vec<Box<dyn Rule>> = vec![
@@ -1041,17 +1226,21 @@ let rules: Vec<Box<dyn Rule>> = vec![
 ];
 ```
 
-Non-test source filter for unwrap-density: strip lines inside `#[cfg(test)]`? v1: count on whole file MINUS files under `tests/`; document imprecision in a code comment only if needed.
+Non-test source filter for unwrap-density: strip lines inside `#[cfg(test)]`?
+v1: count on whole file MINUS files under `tests/`; document imprecision in a
+code comment only if needed.
 
 - [ ] **Step 4: Run all tests, verify pass** — `cargo test -p cargo-baseline`
 
-- [ ] **Step 5: Commit** — `git add -A packages/cargo-baseline && git commit -m "feat(cargo-baseline): tips engine and check command"`
+- [ ] **Step 5: Commit** —
+      `git add -A packages/cargo-baseline && git commit -m "feat(cargo-baseline): tips engine and check command"`
 
 ---
 
 ### Task 13: `init` command + config assets
 
 **Files:**
+
 - Create: `packages/cargo-baseline/assets/baseline.toml`
 - Create: `packages/cargo-baseline/assets/clippy.toml`
 - Create: `packages/cargo-baseline/assets/rustfmt.toml`
@@ -1062,7 +1251,13 @@ Non-test source filter for unwrap-density: strip lines inside `#[cfg(test)]`? v1
 - Rewrite: `packages/cargo-baseline/src/commands/init.rs`
 
 **Interfaces:**
-- Produces: `init::run(path, ci)` writes each asset (via `include_str!("../../assets/<name>")`) into the target, SKIPPING any file that already exists (print `skip: <name> (exists)`); prints a final instruction block telling the user to paste `workspace-lints.toml` content into their root `Cargo.toml` and add `[lints] workspace = true` to each member. `--ci` additionally writes `.github/workflows/baseline.yml` from `baseline-ci.yml`.
+
+- Produces: `init::run(path, ci)` writes each asset (via
+  `include_str!("../../assets/<name>")`) into the target, SKIPPING any file that
+  already exists (print `skip: <name> (exists)`); prints a final instruction
+  block telling the user to paste `workspace-lints.toml` content into their root
+  `Cargo.toml` and add `[lints] workspace = true` to each member. `--ci`
+  additionally writes `.github/workflows/baseline.yml` from `baseline-ci.yml`.
 
 - [ ] **Step 1: Asset contents** (exact):
 
@@ -1180,74 +1375,146 @@ jobs:
       - run: cargo baseline check
 ```
 
-- [ ] **Step 2: Failing integration test** — `tests/init_integration.rs`: run binary `baseline init <tempdir> --ci`; assert `baseline.toml`, `clippy.toml`, `rustfmt.toml`, `deny.toml`, `rust-toolchain.toml`, `.github/workflows/baseline.yml` exist; run again with a pre-existing modified `baseline.toml`, assert content NOT overwritten.
+- [ ] **Step 2: Failing integration test** — `tests/init_integration.rs`: run
+      binary `baseline init <tempdir> --ci`; assert `baseline.toml`,
+      `clippy.toml`, `rustfmt.toml`, `deny.toml`, `rust-toolchain.toml`,
+      `.github/workflows/baseline.yml` exist; run again with a pre-existing
+      modified `baseline.toml`, assert content NOT overwritten.
 
-- [ ] **Step 3: Implement `init.rs`** — a `const ASSETS: &[(&str, &str)]` table of `(relative_path, include_str!(...))`; loop, create parent dirs, skip-if-exists, write; `--ci` appends the workflow tuple; print the paste-instructions block referencing `workspace-lints.toml` content (also written to the project root as `workspace-lints.toml` so the user has it on disk).
+- [ ] **Step 3: Implement `init.rs`** — a `const ASSETS: &[(&str, &str)]` table
+      of `(relative_path, include_str!(...))`; loop, create parent dirs,
+      skip-if-exists, write; `--ci` appends the workflow tuple; print the
+      paste-instructions block referencing `workspace-lints.toml` content (also
+      written to the project root as `workspace-lints.toml` so the user has it
+      on disk).
 
 - [ ] **Step 4: Run tests, verify pass** — `cargo test -p cargo-baseline`
 
-- [ ] **Step 5: Commit** — `git add -A packages/cargo-baseline && git commit -m "feat(cargo-baseline): init command with config assets"`
+- [ ] **Step 5: Commit** —
+      `git add -A packages/cargo-baseline && git commit -m "feat(cargo-baseline): init command with config assets"`
 
 ---
 
 ### Task 14: Dogfood — the crate passes its own check
 
 **Files:**
-- Modify: whatever `cargo baseline check` flags in `packages/cargo-baseline` itself
+
+- Modify: whatever `cargo baseline check` flags in `packages/cargo-baseline`
+  itself
 - Create: `packages/cargo-baseline/baseline.toml` (defaults, from init)
 
 **Steps:**
 
-- [ ] **Step 1:** Run: `cargo run -p cargo-baseline -- baseline check packages/cargo-baseline`
-- [ ] **Step 2:** Fix every reported error by refactoring (split files, move visitors out, extract helpers to own files). Do NOT weaken rules to pass; `disabled_rules` stays empty. Exception allowed: if `check.rs` exceeds 150 lines, split into `check_crate.rs` (per-crate logic) + `check.rs` (orchestration) — each one primary fn.
-- [ ] **Step 3:** Re-run until: `baseline: 0 errors, 0 tips` (tips about our own deps are acceptable if any fire — errors must be 0).
-- [ ] **Step 4:** `cargo test -p cargo-baseline && cargo clippy -p cargo-baseline -- -D warnings`
-- [ ] **Step 5: Commit** — `git commit -am "refactor(cargo-baseline): pass own baseline check (dogfood)"`
+- [ ] **Step 1:** Run:
+      `cargo run -p cargo-baseline -- baseline check packages/cargo-baseline`
+- [ ] **Step 2:** Fix every reported error by refactoring (split files, move
+      visitors out, extract helpers to own files). Do NOT weaken rules to pass;
+      `disabled_rules` stays empty. Exception allowed: if `check.rs` exceeds 150
+      lines, split into `check_crate.rs` (per-crate logic) + `check.rs`
+      (orchestration) — each one primary fn.
+- [ ] **Step 3:** Re-run until: `baseline: 0 errors, 0 tips` (tips about our own
+      deps are acceptable if any fire — errors must be 0).
+- [ ] **Step 4:**
+      `cargo test -p cargo-baseline && cargo clippy -p cargo-baseline -- -D warnings`
+- [ ] **Step 5: Commit** —
+      `git commit -am "refactor(cargo-baseline): pass own baseline check (dogfood)"`
 
 ---
 
 ### Task 15: Docs — crate README + adoption guide
 
 **Files:**
+
 - Create: `packages/cargo-baseline/README.md`
 - Create: `docs/guides/rust-baseline-adoption.md`
-- Modify: `README.md` (repo root — add cargo-baseline to the package list, matching existing entries' style)
+- Modify: `README.md` (repo root — add cargo-baseline to the package list,
+  matching existing entries' style)
 
-**Content requirements (README):** what it enforces (table of 8 rules + 4 tips with one-line descriptions and defaults), install (`cargo install cargo-baseline`), usage (`cargo baseline init [--ci]`, `cargo baseline check`), `baseline.toml` reference (all 7 keys), the include_str! SQL pattern with a 6-line example (`let sql = include_str!("../sql/get_user.sql");` + `conn.query_row(sql, ...)`), test exemptions, link to spec.
+**Content requirements (README):** what it enforces (table of 8 rules + 4 tips
+with one-line descriptions and defaults), install
+(`cargo install cargo-baseline`), usage (`cargo baseline init [--ci]`,
+`cargo baseline check`), `baseline.toml` reference (all 7 keys), the
+include_str! SQL pattern with a 6-line example
+(`let sql = include_str!("../sql/get_user.sql");` + `conn.query_row(sql, ...)`),
+test exemptions, link to spec.
 
-**Content requirements (adoption guide):** step-by-step for an EXISTING project (vexa-shaped): 1) `cargo baseline init --ci` in `src-tauri/`; 2) paste workspace-lints into Cargo.toml, add `[lints] workspace = true`; 3) first `cargo baseline check` run — triage order: grab-bag/barrel violations first (cheap mechanical splits), then `no-inline-sql` (move queries to `sql/*.sql` + `include_str!`), then god-trait split (`max-trait-methods`) which unlocks `max-file-lines` on the store; 4) ratchet strategy: temporarily raise `max_file_lines` in `baseline.toml` to current worst offender, lower it every PR — never disable rules; 5) clippy adoption: start `-W` locally, `-D` in CI once clean.
+**Content requirements (adoption guide):** step-by-step for an EXISTING project
+(vexa-shaped): 1) `cargo baseline init --ci` in `src-tauri/`; 2) paste
+workspace-lints into Cargo.toml, add `[lints] workspace = true`; 3) first
+`cargo baseline check` run — triage order: grab-bag/barrel violations first
+(cheap mechanical splits), then `no-inline-sql` (move queries to `sql/*.sql` +
+`include_str!`), then god-trait split (`max-trait-methods`) which unlocks
+`max-file-lines` on the store; 4) ratchet strategy: temporarily raise
+`max_file_lines` in `baseline.toml` to current worst offender, lower it every PR
+— never disable rules; 5) clippy adoption: start `-W` locally, `-D` in CI once
+clean.
 
-**Steps:** write both docs → verify links/paths referenced actually exist (`ls` each) → `git add ... && git commit -m "docs(cargo-baseline): README and adoption guide"`.
+**Steps:** write both docs → verify links/paths referenced actually exist (`ls`
+each) →
+`git add ... && git commit -m "docs(cargo-baseline): README and adoption guide"`.
 
 ---
 
 ### Task 16: Template `templates/tauri-app`
 
 **Files:**
-- Create: `templates/tauri-app/` — start from `templates/vite-react-app` (copy it, keep its web tooling verbatim) and add:
-  - `src-tauri/Cargo.toml` (tauri 2 deps + `[lints] workspace = true` comment header explaining single-crate case uses `[lints.*]` directly — copy the lint tables from `assets/workspace-lints.toml` converted to non-workspace form `[lints.rust]`/`[lints.clippy]`)
-  - `src-tauri/src/main.rs` (thin: calls `app_lib::run()`), `src-tauri/src/lib.rs` (mods + `run()` with `tauri::Builder`), `src-tauri/src/commands/mod.rs` + `src-tauri/src/commands/greet.rs` (one `#[tauri::command]`), `src-tauri/sql/.gitkeep`, `src-tauri/baseline.toml`, `src-tauri/clippy.toml`, `src-tauri/rustfmt.toml`, `src-tauri/deny.toml`, `src-tauri/rust-toolchain.toml`, `src-tauri/tauri.conf.json` (minimal valid tauri 2 config, mirror dj-rocket's structure: read `/Users/cristiandeluxe/p/dj-rocket/src-tauri/tauri.conf.json` and reproduce with template placeholders)
-- Modify: `packages/create-baseline/` template registry — find where existing templates are listed (grep `vite-react-app` in `packages/create-baseline/src`) and add `tauri-app` the same way.
+
+- Create: `templates/tauri-app/` — start from `templates/vite-react-app` (copy
+  it, keep its web tooling verbatim) and add:
+  - `src-tauri/Cargo.toml` (tauri 2 deps + `[lints] workspace = true` comment
+    header explaining single-crate case uses `[lints.*]` directly — copy the
+    lint tables from `assets/workspace-lints.toml` converted to non-workspace
+    form `[lints.rust]`/`[lints.clippy]`)
+  - `src-tauri/src/main.rs` (thin: calls `app_lib::run()`),
+    `src-tauri/src/lib.rs` (mods + `run()` with `tauri::Builder`),
+    `src-tauri/src/commands/mod.rs` + `src-tauri/src/commands/greet.rs` (one
+    `#[tauri::command]`), `src-tauri/sql/.gitkeep`, `src-tauri/baseline.toml`,
+    `src-tauri/clippy.toml`, `src-tauri/rustfmt.toml`, `src-tauri/deny.toml`,
+    `src-tauri/rust-toolchain.toml`, `src-tauri/tauri.conf.json` (minimal valid
+    tauri 2 config, mirror dj-rocket's structure: read
+    `/Users/cristiandeluxe/p/dj-rocket/src-tauri/tauri.conf.json` and reproduce
+    with template placeholders)
+- Modify: `packages/create-baseline/` template registry — find where existing
+  templates are listed (grep `vite-react-app` in `packages/create-baseline/src`)
+  and add `tauri-app` the same way.
 
 **Steps:**
+
 - [ ] Copy vite-react-app, add src-tauri files as above.
-- [ ] Verify: `cargo run -p cargo-baseline -- baseline check templates/tauri-app/src-tauri` → `baseline: 0 errors`.
-- [ ] Verify create-baseline lists it: run its test suite (`pnpm --filter create-baseline test` if present; else `pnpm --filter create-baseline build`).
-- [ ] Commit: `git add templates/tauri-app packages/create-baseline && git commit -m "feat(templates): tauri-app template with rust baseline"`
+- [ ] Verify:
+      `cargo run -p cargo-baseline -- baseline check templates/tauri-app/src-tauri`
+      → `baseline: 0 errors`.
+- [ ] Verify create-baseline lists it: run its test suite
+      (`pnpm --filter create-baseline test` if present; else
+      `pnpm --filter create-baseline build`).
+- [ ] Commit:
+      `git add templates/tauri-app packages/create-baseline && git commit -m "feat(templates): tauri-app template with rust baseline"`
 
 ---
 
 ### Task 17: Run against vexa — real-world report
 
 **Files:**
+
 - Create: `docs/reports/2026-07-23-vexa-baseline-report.md`
 
 **Steps:**
-- [ ] Run: `cargo run -p cargo-baseline -- baseline check /Users/cristiandeluxe/p/vexa/src-tauri | tee /private/tmp/vexa-report.txt` (expect MANY errors — sqlite_store.rs alone; non-zero exit is expected and correct).
-- [ ] Also run against dj-rocket: `cargo run -p cargo-baseline -- baseline check /Users/cristiandeluxe/p/dj-rocket/src-tauri`.
-- [ ] Write the report doc: error counts per rule per project, top-10 worst files, the recommended vexa attack order (from the adoption guide: barrel → SQL extraction → Store trait segregation → file splits), and the exact commands to start (`cargo baseline init --ci` inside `src-tauri`). Do NOT modify vexa or dj-rocket.
-- [ ] Sanity: tool must not crash on any vexa file (538 files — parse errors on valid code are tool bugs; fix before closing task).
-- [ ] Commit: `git add docs/reports && git commit -m "docs: baseline check reports for vexa and dj-rocket"`
+
+- [ ] Run:
+      `cargo run -p cargo-baseline -- baseline check /Users/cristiandeluxe/p/vexa/src-tauri | tee /private/tmp/vexa-report.txt`
+      (expect MANY errors — sqlite_store.rs alone; non-zero exit is expected and
+      correct).
+- [ ] Also run against dj-rocket:
+      `cargo run -p cargo-baseline -- baseline check /Users/cristiandeluxe/p/dj-rocket/src-tauri`.
+- [ ] Write the report doc: error counts per rule per project, top-10 worst
+      files, the recommended vexa attack order (from the adoption guide: barrel
+      → SQL extraction → Store trait segregation → file splits), and the exact
+      commands to start (`cargo baseline init --ci` inside `src-tauri`). Do NOT
+      modify vexa or dj-rocket.
+- [ ] Sanity: tool must not crash on any vexa file (538 files — parse errors on
+      valid code are tool bugs; fix before closing task).
+- [ ] Commit:
+      `git add docs/reports && git commit -m "docs: baseline check reports for vexa and dj-rocket"`
 
 ---
 
@@ -1260,4 +1527,5 @@ cargo test -p cargo-baseline \
   && cargo run -p cargo-baseline -- baseline check templates/tauri-app/src-tauri
 ```
 
-All four must succeed. crates.io publish is a separate later step (needs `cargo login`) — not part of this plan.
+All four must succeed. crates.io publish is a separate later step (needs
+`cargo login`) — not part of this plan.
