@@ -22,6 +22,16 @@ type-coverage 2, lefthook 2, gitleaks, actionlint, publint,
 
 **Spec:** `docs/superpowers/specs/2026-08-02-code-quality-gates-design.md`
 
+> **Task 11 is cancelled.** The Task 10 spike found `type-coverage` cannot run
+> here: `type-coverage-core` throws
+> `TypeError: Cannot read properties of undefined (reading 'Unknown')` on
+> `ts.SyntaxKind.Unknown` at load time, unable to load the TypeScript module
+> behind the `npm:@typescript/typescript6` alias. Module loading, not analysis,
+> so no configuration fixes it. Every `types:coverage` script, Turbo task and
+> `check:quality` component below is therefore dropped, and `type-coverage` does
+> not join `THIRD_PARTY_PINS` in Task 17. The ESLint suppressions ratchet
+> (Task 12) carries the type-safety half alone. Debt is in `TODO.md`.
+
 ## Global Constraints
 
 - Every written artifact is in **English** — source, comments, identifiers,
