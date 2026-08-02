@@ -368,7 +368,20 @@ builds that precede it.
 - [ ] **Step 3: Run the full pipeline**
 
 Run: `pnpm check:ci` Expected: PASS, and the log shows Lighthouse running for
-`my-nextjs-app` and `my-vite-react-app`.
+the six templates that define `perf:check` — `astro-site`, `nextjs-app`,
+`nuxt-app`, `tauri-app`, `vite-react-app`, `vue-app`. The remaining two
+(`nestjs-app`, `ts-package`) have no page to measure and are skipped by Turbo,
+which is correct.
+
+Two environment caveats, both established during execution:
+
+- `nuxt-app` fails here with `Status code: 500` until its `.lighthouserc.json`
+  passes `NUXT_PUBLIC_API_BASE_URL`. The built SSR server validates `apiBaseUrl`
+  with `z.url()` and aborts on the empty default, so its Lighthouse run never
+  worked — adding `perf:check` to `check:ci` is what surfaced it.
+- Headless Chrome may report `NO_FCP` in a sandboxed shell, which makes the
+  assertions pass vacuously. That is an environment limit, not a wiring defect;
+  never weaken an assertion to work around it.
 
 - [ ] **Step 4: Commit**
 
