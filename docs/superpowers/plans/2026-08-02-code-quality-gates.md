@@ -1,28 +1,60 @@
 # Code Quality Gates Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:subagent-driven-development (recommended) or
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add cross-file quality gates (dead code, dependency graph, secrets, vulnerable deps, package publishability, type-safety ratchet) to the baseline monorepo and ship them to every template and to `create-baseline`.
+**Goal:** Add cross-file quality gates (dead code, dependency graph, secrets,
+vulnerable deps, package publishability, type-safety ratchet) to the baseline
+monorepo and ship them to every template and to `create-baseline`.
 
-**Architecture:** A new publishable package `@busirocket/quality-config` exports config factories (TypeScript sources, no build step) consumed by three-line config files in each template. Graph-wide gates (knip, dependency-cruiser) run once at the repo root; per-project gates (type-coverage, ESLint suppressions) run per workspace through Turbo. CI splits into three parallel jobs.
+**Architecture:** A new publishable package `@busirocket/quality-config` exports
+config factories (TypeScript sources, no build step) consumed by three-line
+config files in each template. Graph-wide gates (knip, dependency-cruiser) run
+once at the repo root; per-project gates (type-coverage, ESLint suppressions)
+run per workspace through Turbo. CI splits into three parallel jobs.
 
-**Tech Stack:** pnpm 11 workspaces, Turborepo 2, ESLint 10 flat config, TypeScript 6 alias (`@typescript/typescript6`), knip 6, dependency-cruiser 18, type-coverage 2, lefthook 2, gitleaks, actionlint, publint, `@arethetypeswrong/cli`, Renovate.
+**Tech Stack:** pnpm 11 workspaces, Turborepo 2, ESLint 10 flat config,
+TypeScript 6 alias (`@typescript/typescript6`), knip 6, dependency-cruiser 18,
+type-coverage 2, lefthook 2, gitleaks, actionlint, publint,
+`@arethetypeswrong/cli`, Renovate.
 
 **Spec:** `docs/superpowers/specs/2026-08-02-code-quality-gates-design.md`
 
 ## Global Constraints
 
-- Every written artifact is in **English** — source, comments, identifiers, commit messages, docs. No exceptions.
-- No AI/assistant attribution anywhere: no `Co-Authored-By`, no "Generated with" footer, no mention of Claude or Anthropic in commits or docs.
-- **Atomic File Rule:** one file = one exported unit = one responsibility. No `utils.ts`/`helpers.ts` grab bags. Every dependency is an explicit `import`.
-- Package conventions, copied from `packages/eslint-config`: `"type": "module"`, TypeScript sources exported directly via subpath `exports` (no build step), `PUBLIC_API.md` declaring which subpaths carry semver, third-party tools as **optional** peer dependencies, `engines.node >= 20`, `license: MIT`, `publishConfig.access: public`, `repository.directory` set.
-- Pinned tool versions (verified 2026-08-02): knip `^6.31.0`, dependency-cruiser `^18.1.0`, type-coverage `^2.30.1`, publint `^0.3.22`, `@arethetypeswrong/cli` `^0.18.5`, lefthook `^2.1.10`, `@vitest/eslint-plugin` `^1.6.25`, `eslint-plugin-testing-library` `^7.16.2`.
-- `eslint-plugin-vitest` is deprecated — never use it. The maintained package is `@vitest/eslint-plugin`.
-- Node floor is **22** (`dependency-cruiser` requires `^22 || ^24 || >=26`; CI already pins 22).
-- The eight templates are: `astro-site`, `nestjs-app`, `nextjs-app`, `nuxt-app`, `tauri-app`, `ts-package`, `vite-react-app`, `vue-app`. All are `private: true`.
-- The five published npm packages are: `@busirocket/eslint-config`, `@busirocket/prettier-config`, `@busirocket/tsconfig`, `@busirocket/create-baseline`, `eslint-plugin-code-policy`. (`cargo-baseline` is a Rust crate with no `package.json`.)
-- Never lower a threshold to make a gate pass. If a measured value comes in below the target, pin the threshold to the measured value and record the gap in `TODO.md` as debt.
-- Gate verification is always: introduce a real violation, confirm the gate fails, revert. Verification artifacts are **never** committed.
+- Every written artifact is in **English** — source, comments, identifiers,
+  commit messages, docs. No exceptions.
+- No AI/assistant attribution anywhere: no `Co-Authored-By`, no "Generated with"
+  footer, no mention of Claude or Anthropic in commits or docs.
+- **Atomic File Rule:** one file = one exported unit = one responsibility. No
+  `utils.ts`/`helpers.ts` grab bags. Every dependency is an explicit `import`.
+- Package conventions, copied from `packages/eslint-config`: `"type": "module"`,
+  TypeScript sources exported directly via subpath `exports` (no build step),
+  `PUBLIC_API.md` declaring which subpaths carry semver, third-party tools as
+  **optional** peer dependencies, `engines.node >= 20`, `license: MIT`,
+  `publishConfig.access: public`, `repository.directory` set.
+- Pinned tool versions (verified 2026-08-02): knip `^6.31.0`, dependency-cruiser
+  `^18.1.0`, type-coverage `^2.30.1`, publint `^0.3.22`, `@arethetypeswrong/cli`
+  `^0.18.5`, lefthook `^2.1.10`, `@vitest/eslint-plugin` `^1.6.25`,
+  `eslint-plugin-testing-library` `^7.16.2`.
+- `eslint-plugin-vitest` is deprecated — never use it. The maintained package is
+  `@vitest/eslint-plugin`.
+- Node floor is **22** (`dependency-cruiser` requires `^22 || ^24 || >=26`; CI
+  already pins 22).
+- The eight templates are: `astro-site`, `nestjs-app`, `nextjs-app`, `nuxt-app`,
+  `tauri-app`, `ts-package`, `vite-react-app`, `vue-app`. All are
+  `private: true`.
+- The five published npm packages are: `@busirocket/eslint-config`,
+  `@busirocket/prettier-config`, `@busirocket/tsconfig`,
+  `@busirocket/create-baseline`, `eslint-plugin-code-policy`. (`cargo-baseline`
+  is a Rust crate with no `package.json`.)
+- Never lower a threshold to make a gate pass. If a measured value comes in
+  below the target, pin the threshold to the measured value and record the gap
+  in `TODO.md` as debt.
+- Gate verification is always: introduce a real violation, confirm the gate
+  fails, revert. Verification artifacts are **never** committed.
 - Run `pnpm check:all` before declaring any task complete.
 
 ---
@@ -31,44 +63,44 @@
 
 **Created:**
 
-| File | Responsibility |
-| --- | --- |
-| `packages/quality-config/package.json` | Package manifest, subpath exports, optional peers |
-| `packages/quality-config/tsconfig.json` | Type-check config, extends `@busirocket/tsconfig` |
-| `packages/quality-config/src/knip.ts` | `createKnipConfig` — one export |
-| `packages/quality-config/src/knip-framework.ts` | `KnipFramework` type + entry/project globs per framework |
-| `packages/quality-config/src/dependency-cruiser.ts` | `createDepCruiserConfig` — one export |
-| `packages/quality-config/src/type-coverage.ts` | `TYPE_COVERAGE_THRESHOLD` constant |
-| `packages/quality-config/src/lefthook.ts` | `createLefthookConfig` — one export |
-| `packages/quality-config/src/index.ts` | Re-exports |
-| `packages/quality-config/PUBLIC_API.md` | Semver-stable subpaths |
-| `packages/quality-config/README.md` | Usage |
-| `packages/eslint-config/src/testing.ts` | `createTestingConfig` — vitest + testing-library rules |
-| `knip.config.ts` (root) | Root knip config for the workspace |
-| `.dependency-cruiser.cjs` (root) | Root dependency graph rules |
-| `.gitleaks.toml` (root) | Secret-scanning allowlist |
-| `lefthook.yml` (root + 8 templates) | Git hooks |
-| `renovate.json` (root + 8 templates) | Dependency update policy |
-| `templates/*/knip.config.ts` | Three-line per-template knip config (8 files) |
-| `docs/standards/quality-gates.md` | Per-gate reference: what, threshold, why |
+| File                                                | Responsibility                                           |
+| --------------------------------------------------- | -------------------------------------------------------- |
+| `packages/quality-config/package.json`              | Package manifest, subpath exports, optional peers        |
+| `packages/quality-config/tsconfig.json`             | Type-check config, extends `@busirocket/tsconfig`        |
+| `packages/quality-config/src/knip.ts`               | `createKnipConfig` — one export                          |
+| `packages/quality-config/src/knip-framework.ts`     | `KnipFramework` type + entry/project globs per framework |
+| `packages/quality-config/src/dependency-cruiser.ts` | `createDepCruiserConfig` — one export                    |
+| `packages/quality-config/src/type-coverage.ts`      | `TYPE_COVERAGE_THRESHOLD` constant                       |
+| `packages/quality-config/src/lefthook.ts`           | `createLefthookConfig` — one export                      |
+| `packages/quality-config/src/index.ts`              | Re-exports                                               |
+| `packages/quality-config/PUBLIC_API.md`             | Semver-stable subpaths                                   |
+| `packages/quality-config/README.md`                 | Usage                                                    |
+| `packages/eslint-config/src/testing.ts`             | `createTestingConfig` — vitest + testing-library rules   |
+| `knip.config.ts` (root)                             | Root knip config for the workspace                       |
+| `.dependency-cruiser.cjs` (root)                    | Root dependency graph rules                              |
+| `.gitleaks.toml` (root)                             | Secret-scanning allowlist                                |
+| `lefthook.yml` (root + 8 templates)                 | Git hooks                                                |
+| `renovate.json` (root + 8 templates)                | Dependency update policy                                 |
+| `templates/*/knip.config.ts`                        | Three-line per-template knip config (8 files)            |
+| `docs/standards/quality-gates.md`                   | Per-gate reference: what, threshold, why                 |
 
 **Modified:**
 
-| File | Change |
-| --- | --- |
-| `package.json` (root) | New scripts: `knip`, `deps:graph`, `types:coverage`, `publish:check`, `lint:suppress`, `check:quality`, `check:security`; `check:ci` gains `perf:check`, drops duplicated `dupes` |
-| `turbo.json` | New tasks: `types:coverage`, `publish:check`, `lint:suppress` |
-| `packages/eslint-config/src/base.ts:87` | `import/no-cycle` full depth |
-| `packages/eslint-config/src/code-quality.ts` | Compose the new testing layer |
-| `packages/eslint-config/package.json` | New `./testing` export, new optional peers |
-| `templates/*/package.json` | `lint` gains `--max-warnings 0 --prune-suppressions`; new `lint:suppress`, `types:coverage` (8 files) |
-| `packages/*/package.json` | Same, plus `publish:check` on published packages |
-| `.github/workflows/ci.yml` | Three parallel jobs |
-| `.github/workflows/publish.yml` | `quality-config` added to the package choice list |
-| `scripts/sync-versions.mjs` | `@busirocket/quality-config` in `BASELINE_CONSUMER_PACKAGES`; new tools in `THIRD_PARTY_PINS` |
-| `packages/create-baseline/bin/create-baseline.mjs` | Check for the new config files, matching the existing `eslint.config.*` check |
-| `docs/adoption/existing-repo.md` | Freeze-and-ratchet adoption workflow |
-| `README.md` | Pipeline section covers the new gates |
+| File                                               | Change                                                                                                                                                                            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json` (root)                              | New scripts: `knip`, `deps:graph`, `types:coverage`, `publish:check`, `lint:suppress`, `check:quality`, `check:security`; `check:ci` gains `perf:check`, drops duplicated `dupes` |
+| `turbo.json`                                       | New tasks: `types:coverage`, `publish:check`, `lint:suppress`                                                                                                                     |
+| `packages/eslint-config/src/base.ts:87`            | `import/no-cycle` full depth                                                                                                                                                      |
+| `packages/eslint-config/src/code-quality.ts`       | Compose the new testing layer                                                                                                                                                     |
+| `packages/eslint-config/package.json`              | New `./testing` export, new optional peers                                                                                                                                        |
+| `templates/*/package.json`                         | `lint` gains `--max-warnings 0 --prune-suppressions`; new `lint:suppress`, `types:coverage` (8 files)                                                                             |
+| `packages/*/package.json`                          | Same, plus `publish:check` on published packages                                                                                                                                  |
+| `.github/workflows/ci.yml`                         | Three parallel jobs                                                                                                                                                               |
+| `.github/workflows/publish.yml`                    | `quality-config` added to the package choice list                                                                                                                                 |
+| `scripts/sync-versions.mjs`                        | `@busirocket/quality-config` in `BASELINE_CONSUMER_PACKAGES`; new tools in `THIRD_PARTY_PINS`                                                                                     |
+| `packages/create-baseline/bin/create-baseline.mjs` | Check for the new config files, matching the existing `eslint.config.*` check                                                                                                     |
+| `docs/adoption/existing-repo.md`                   | Freeze-and-ratchet adoption workflow                                                                                                                                              |
+| `README.md`                                        | Pipeline section covers the new gates                                                                                                                                             |
 
 ---
 
@@ -76,53 +108,73 @@
 
 ### Task 1: Make warn-level rules enforceable
 
-Today no lint script passes `--max-warnings 0`, so `complexity: 10`, `max-depth: 4`, `max-params: 4`, `max-lines-per-function: 50`, and `sonarjs/no-duplicate-string` never fail CI. A baseline run on 2026-08-02 reported zero warnings across all 13 Turbo tasks, so this change should cost no debt — but that must be confirmed, not assumed.
+Today no lint script passes `--max-warnings 0`, so `complexity: 10`,
+`max-depth: 4`, `max-params: 4`, `max-lines-per-function: 50`, and
+`sonarjs/no-duplicate-string` never fail CI. A baseline run on 2026-08-02
+reported zero warnings across all 13 Turbo tasks, so this change should cost no
+debt — but that must be confirmed, not assumed.
 
 **Files:**
-- Modify: `templates/astro-site/package.json`, `templates/nestjs-app/package.json`, `templates/nextjs-app/package.json`, `templates/nuxt-app/package.json`, `templates/tauri-app/package.json`, `templates/ts-package/package.json`, `templates/vite-react-app/package.json`, `templates/vue-app/package.json`
-- Modify: `packages/eslint-config/package.json`, `packages/eslint-plugin-code-policy/package.json`
+
+- Modify: `templates/astro-site/package.json`,
+  `templates/nestjs-app/package.json`, `templates/nextjs-app/package.json`,
+  `templates/nuxt-app/package.json`, `templates/tauri-app/package.json`,
+  `templates/ts-package/package.json`, `templates/vite-react-app/package.json`,
+  `templates/vue-app/package.json`
+- Modify: `packages/eslint-config/package.json`,
+  `packages/eslint-plugin-code-policy/package.json`
 
 **Interfaces:**
-- Consumes: nothing.
-- Produces: every `lint` script fails on any warning. Task 7 extends these same scripts with `--prune-suppressions`.
 
-- [ ] **Step 1: Confirm the repo is currently clean (the failing-test equivalent)**
+- Consumes: nothing.
+- Produces: every `lint` script fails on any warning. Task 7 extends these same
+  scripts with `--prune-suppressions`.
+
+- [ ] **Step 1: Confirm the repo is currently clean (the failing-test
+      equivalent)**
 
 Run: `pnpm lint --force -- --max-warnings 0 2>&1 | tail -30`
 
-Flag order matters: `--force` must land before pnpm's `--` so Turbo consumes it as its own cache-bypass flag. Everything after `--` is forwarded to each package's `eslint` invocation, which rejects `--force`.
+Flag order matters: `--force` must land before pnpm's `--` so Turbo consumes it
+as its own cache-bypass flag. Everything after `--` is forwarded to each
+package's `eslint` invocation, which rejects `--force`.
 
-Expected: exit 0. If it reports warnings, **stop and list them** — they must be fixed in this task before the flag goes in, or the flag is a lie. Do not proceed by relaxing rules.
+Expected: exit 0. If it reports warnings, **stop and list them** — they must be
+fixed in this task before the flag goes in, or the flag is a lie. Do not proceed
+by relaxing rules.
 
 - [ ] **Step 2: Add the flag to all eight templates**
 
-Each template's `lint` and `lint:fix` keep their existing path arguments and gain the flag. The paths differ per template — do not normalise them:
+Each template's `lint` and `lint:fix` keep their existing path arguments and
+gain the flag. The paths differ per template — do not normalise them:
 
-| Template | New `lint` value |
-| --- | --- |
-| `astro-site` | `eslint src --max-warnings 0` |
-| `nestjs-app` | `eslint src --max-warnings 0` |
-| `nextjs-app` | `eslint app src --max-warnings 0` |
-| `nuxt-app` | `eslint . --max-warnings 0` |
-| `tauri-app` | `eslint src --max-warnings 0` |
-| `ts-package` | `eslint src --max-warnings 0` |
-| `vite-react-app` | `eslint src --max-warnings 0` |
-| `vue-app` | `eslint src --max-warnings 0` |
+| Template         | New `lint` value                  |
+| ---------------- | --------------------------------- |
+| `astro-site`     | `eslint src --max-warnings 0`     |
+| `nestjs-app`     | `eslint src --max-warnings 0`     |
+| `nextjs-app`     | `eslint app src --max-warnings 0` |
+| `nuxt-app`       | `eslint . --max-warnings 0`       |
+| `tauri-app`      | `eslint src --max-warnings 0`     |
+| `ts-package`     | `eslint src --max-warnings 0`     |
+| `vite-react-app` | `eslint src --max-warnings 0`     |
+| `vue-app`        | `eslint src --max-warnings 0`     |
 
 Leave `lint:fix` without the flag — it is the fixing entry point, not a gate.
 
 - [ ] **Step 3: Add the flag to the two linted packages**
 
-`packages/eslint-config/package.json` and `packages/eslint-plugin-code-policy/package.json`: `"lint": "eslint src --max-warnings 0"`.
+`packages/eslint-config/package.json` and
+`packages/eslint-plugin-code-policy/package.json`:
+`"lint": "eslint src --max-warnings 0"`.
 
 - [ ] **Step 4: Verify the gate is live**
 
-Run: `pnpm lint --force`
-Expected: PASS, all tasks green.
+Run: `pnpm lint --force` Expected: PASS, all tasks green.
 
 - [ ] **Step 5: Prove the gate actually bites**
 
-Append to `templates/ts-package/src/index.ts` a function at cyclomatic complexity 11:
+Append to `templates/ts-package/src/index.ts` a function at cyclomatic
+complexity 11:
 
 ```ts
 export const complexityProbe = (n: number): string => {
@@ -140,14 +192,13 @@ export const complexityProbe = (n: number): string => {
 }
 ```
 
-Run: `pnpm --filter my-ts-package lint`
-Expected: FAIL with `complexity` warning counted as an error.
+Run: `pnpm --filter my-ts-package lint` Expected: FAIL with `complexity` warning
+counted as an error.
 
 - [ ] **Step 6: Revert the probe**
 
-Run: `git checkout templates/ts-package/src/index.ts`
-Then: `pnpm --filter my-ts-package lint`
-Expected: PASS.
+Run: `git checkout templates/ts-package/src/index.ts` Then:
+`pnpm --filter my-ts-package lint` Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
@@ -165,18 +216,29 @@ warnings today, so the flag costs no debt."
 
 ### Task 2: Detect import cycles at full depth
 
-`packages/eslint-config/src/base.ts:87` caps `import/no-cycle` at `maxDepth: 1`, which only finds direct A→B→A cycles. Longer cycles — the ones that actually tangle large codebases — pass silently.
+`packages/eslint-config/src/base.ts:87` caps `import/no-cycle` at `maxDepth: 1`,
+which only finds direct A→B→A cycles. Longer cycles — the ones that actually
+tangle large codebases — pass silently.
 
 **Files:**
+
 - Modify: `packages/eslint-config/src/base.ts:87`
 
 **Interfaces:**
+
 - Consumes: nothing.
-- Produces: full-depth cycle detection in every consumer of `@busirocket/eslint-config/base`. Task 9 adds a second, graph-level cycle check via dependency-cruiser; they overlap deliberately (ESLint catches it at author time, dependency-cruiser catches it across package boundaries ESLint does not resolve).
+- Produces: full-depth cycle detection in every consumer of
+  `@busirocket/eslint-config/base`. Task 9 adds a second, graph-level cycle
+  check via dependency-cruiser; they overlap deliberately (ESLint catches it at
+  author time, dependency-cruiser catches it across package boundaries ESLint
+  does not resolve).
 
 - [ ] **Step 1: Write the failing case**
 
-Create three files inside `templates/ts-package/src/`. The blank line after each import is required: the repo enforces `import/newline-after-import` as an error, and without it lint fails on formatting before `import/no-cycle` is ever evaluated — masking the test.
+Create three files inside `templates/ts-package/src/`. The blank line after each
+import is required: the repo enforces `import/newline-after-import` as an error,
+and without it lint fails on formatting before `import/no-cycle` is ever
+evaluated — masking the test.
 
 ```ts
 // cycle-a.ts
@@ -201,8 +263,8 @@ export const fromC = (): string => `c${String(fromA)}`
 
 - [ ] **Step 2: Confirm the current config misses it**
 
-Run: `pnpm --filter my-ts-package lint`
-Expected: PASS — proving `maxDepth: 1` does not see a three-hop cycle.
+Run: `pnpm --filter my-ts-package lint` Expected: PASS — proving `maxDepth: 1`
+does not see a three-hop cycle.
 
 - [ ] **Step 3: Remove the depth cap**
 
@@ -220,7 +282,13 @@ with:
 'import/no-cycle': ['error', { ignoreExternal: true }],
 ```
 
-**This alone does not work**, and Step 4 will still pass if you stop here. `eslint-plugin-import` gates its export-map builder on `settings['import/extensions']`, which defaults to `['.js', '.mjs', '.cjs']`. The config never set it, so every `.ts` file was rejected before parsing and `import/no-cycle` found nothing at any depth. The same mechanism silently disabled `import/export`, `import/namespace`, and `import/no-unused-modules` on TypeScript.
+**This alone does not work**, and Step 4 will still pass if you stop here.
+`eslint-plugin-import` gates its export-map builder on
+`settings['import/extensions']`, which defaults to `['.js', '.mjs', '.cjs']`.
+The config never set it, so every `.ts` file was rejected before parsing and
+`import/no-cycle` found nothing at any depth. The same mechanism silently
+disabled `import/export`, `import/namespace`, and `import/no-unused-modules` on
+TypeScript.
 
 Extend the `settings` block in the same config object:
 
@@ -235,8 +303,8 @@ settings: {
 
 - [ ] **Step 4: Confirm the cycle is now caught**
 
-Run: `pnpm --filter my-ts-package lint`
-Expected: FAIL with `import/no-cycle` on `cycle-a.ts`, `cycle-b.ts`, `cycle-c.ts`.
+Run: `pnpm --filter my-ts-package lint` Expected: FAIL with `import/no-cycle` on
+`cycle-a.ts`, `cycle-b.ts`, `cycle-c.ts`.
 
 - [ ] **Step 5: Remove the probe files**
 
@@ -246,8 +314,8 @@ rm templates/ts-package/src/cycle-a.ts templates/ts-package/src/cycle-b.ts templ
 
 - [ ] **Step 6: Verify the whole repo still passes**
 
-Run: `pnpm lint --force`
-Expected: PASS. If a real cycle surfaces in the repo, fix the cycle — do not restore the cap.
+Run: `pnpm lint --force` Expected: PASS. If a real cycle surfaces in the repo,
+fix the cycle — do not restore the cap.
 
 - [ ] **Step 7: Commit**
 
@@ -263,19 +331,26 @@ three-hop cycle that the previous config passed."
 
 ### Task 3: Run the performance budget in CI and stop double-running dupes
 
-`check:ci` never invoked `perf:check`, so the Lighthouse budgets in `nextjs-app` and `vite-react-app` were dead config. It also runs `dupes` twice: once per package through Turbo (which only sees within-package duplication) and once at the root (the actual cross-file gate).
+`check:ci` never invoked `perf:check`, so the Lighthouse budgets in `nextjs-app`
+and `vite-react-app` were dead config. It also runs `dupes` twice: once per
+package through Turbo (which only sees within-package duplication) and once at
+the root (the actual cross-file gate).
 
 **Files:**
+
 - Modify: `package.json` (root, `scripts.check:ci` and `scripts.check:all`)
 
 **Interfaces:**
+
 - Consumes: nothing.
-- Produces: `check:ci` as the complete correctness gate. Task 15 splits `check:quality` and `check:security` out into sibling scripts and CI jobs.
+- Produces: `check:ci` as the complete correctness gate. Task 15 splits
+  `check:quality` and `check:security` out into sibling scripts and CI jobs.
 
 - [ ] **Step 1: Confirm perf:check currently runs nowhere in CI**
 
-Run: `grep -n "perf:check" package.json .github/workflows/ci.yml`
-Expected: it appears in `package.json` as a standalone script only, and not at all in `ci.yml`.
+Run: `grep -n "perf:check" package.json .github/workflows/ci.yml` Expected: it
+appears in `package.json` as a standalone script only, and not at all in
+`ci.yml`.
 
 - [ ] **Step 2: Rewrite the two pipeline scripts**
 
@@ -286,12 +361,14 @@ In the root `package.json`:
 "check:ci": "pnpm sync-versions:check && turbo run type-check lint test build && pnpm format:check && pnpm dupes && pnpm perf:check",
 ```
 
-The per-package `dupes` is gone from the Turbo task list; the root `pnpm dupes` is the cross-file gate and stays. `perf:check` runs last because it needs the builds that precede it.
+The per-package `dupes` is gone from the Turbo task list; the root `pnpm dupes`
+is the cross-file gate and stays. `perf:check` runs last because it needs the
+builds that precede it.
 
 - [ ] **Step 3: Run the full pipeline**
 
-Run: `pnpm check:ci`
-Expected: PASS, and the log shows Lighthouse running for `my-nextjs-app` and `my-vite-react-app`.
+Run: `pnpm check:ci` Expected: PASS, and the log shows Lighthouse running for
+`my-nextjs-app` and `my-vite-react-app`.
 
 - [ ] **Step 4: Commit**
 
@@ -312,15 +389,23 @@ cross-file gate."
 ### Task 4: Scaffold the quality-config package
 
 **Files:**
-- Create: `packages/quality-config/package.json`, `packages/quality-config/tsconfig.json`, `packages/quality-config/src/index.ts`, `packages/quality-config/README.md`, `packages/quality-config/PUBLIC_API.md`, `packages/quality-config/LICENSE`
+
+- Create: `packages/quality-config/package.json`,
+  `packages/quality-config/tsconfig.json`,
+  `packages/quality-config/src/index.ts`, `packages/quality-config/README.md`,
+  `packages/quality-config/PUBLIC_API.md`, `packages/quality-config/LICENSE`
 
 **Interfaces:**
+
 - Consumes: nothing.
-- Produces: the package `@busirocket/quality-config`, resolvable as `workspace:*`. Tasks 5–9 add its exports. Task 17 registers it in `sync-versions.mjs` and `publish.yml`.
+- Produces: the package `@busirocket/quality-config`, resolvable as
+  `workspace:*`. Tasks 5–9 add its exports. Task 17 registers it in
+  `sync-versions.mjs` and `publish.yml`.
 
 - [ ] **Step 1: Write the manifest**
 
-`packages/quality-config/package.json`. The `exports` map lists subpaths added by later tasks; each has a matching file created before that task ends.
+`packages/quality-config/package.json`. The `exports` map lists subpaths added
+by later tasks; each has a matching file created before that task ends.
 
 ```json
 {
@@ -381,11 +466,14 @@ cross-file gate."
 }
 ```
 
-`engines.node` is `>=22` here, not `>=20` as in the sibling packages, because `dependency-cruiser` 18 requires `^22 || ^24 || >=26`.
+`engines.node` is `>=22` here, not `>=20` as in the sibling packages, because
+`dependency-cruiser` 18 requires `^22 || ^24 || >=26`.
 
 - [ ] **Step 2: Mirror the tsconfig and eslint setup from a sibling**
 
-Copy the shape of `packages/eslint-config/tsconfig.json` and `packages/eslint-config/eslint.config.ts` into `packages/quality-config/`, changing only paths. Read the source files first — do not invent the contents.
+Copy the shape of `packages/eslint-config/tsconfig.json` and
+`packages/eslint-config/eslint.config.ts` into `packages/quality-config/`,
+changing only paths. Read the source files first — do not invent the contents.
 
 - [ ] **Step 3: Write the placeholder barrel**
 
@@ -398,7 +486,9 @@ export { TYPE_COVERAGE_THRESHOLD } from './type-coverage'
 export { createLefthookConfig } from './lefthook'
 ```
 
-This will not type-check until Tasks 5, 9, 11 and 16 land. Create the four files as minimal stubs now so the barrel resolves; each later task replaces its stub with the real implementation.
+This will not type-check until Tasks 5, 9, 11 and 16 land. Create the four files
+as minimal stubs now so the barrel resolves; each later task replaces its stub
+with the real implementation.
 
 Stubs — one export per file, per the Atomic File Rule:
 
@@ -408,7 +498,9 @@ Stubs — one export per file, per the Atomic File Rule:
 export const TYPE_COVERAGE_THRESHOLD = 99
 ```
 
-For `knip.ts`, `dependency-cruiser.ts` and `lefthook.ts`, write the real signature returning an empty object literal of the right type; Tasks 5, 9 and 16 fill in the bodies.
+For `knip.ts`, `dependency-cruiser.ts` and `lefthook.ts`, write the real
+signature returning an empty object literal of the right type; Tasks 5, 9 and 16
+fill in the bodies.
 
 - [ ] **Step 4: Copy the LICENSE**
 
@@ -418,11 +510,14 @@ cp LICENSE packages/quality-config/LICENSE
 
 - [ ] **Step 5: Write README.md and PUBLIC_API.md**
 
-`PUBLIC_API.md` follows the table format of `packages/eslint-config/PUBLIC_API.md` — read it first and match it. Rows: `.`, `/knip`, `/dependency-cruiser`, `/type-coverage`, `/lefthook`.
+`PUBLIC_API.md` follows the table format of
+`packages/eslint-config/PUBLIC_API.md` — read it first and match it. Rows: `.`,
+`/knip`, `/dependency-cruiser`, `/type-coverage`, `/lefthook`.
 
 - [ ] **Step 6: Install and type-check**
 
-Run: `pnpm install && pnpm --filter @busirocket/quality-config type-check && pnpm --filter @busirocket/quality-config lint`
+Run:
+`pnpm install && pnpm --filter @busirocket/quality-config type-check && pnpm --filter @busirocket/quality-config lint`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -440,10 +535,12 @@ instead of eight copies the jscpd gate would flag."
 ### Task 5: knip config factory
 
 **Files:**
+
 - Create: `packages/quality-config/src/knip-framework.ts`
 - Modify: `packages/quality-config/src/knip.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
   - `type KnipFramework = 'astro' | 'nestjs' | 'nextjs' | 'nuxt' | 'tauri' | 'ts-package' | 'vite-react' | 'vite-vue'`
@@ -454,7 +551,8 @@ instead of eight copies the jscpd gate would flag."
 
 - [ ] **Step 1: Write the framework entry map**
 
-`packages/quality-config/src/knip-framework.ts` — one exported unit (the map) plus its type:
+`packages/quality-config/src/knip-framework.ts` — one exported unit (the map)
+plus its type:
 
 ```ts
 /** Entry and project globs per template framework, consumed by createKnipConfig. */
@@ -556,7 +654,8 @@ export const createKnipConfig = (options: {
 
 - [ ] **Step 3: Type-check and lint**
 
-Run: `pnpm --filter @busirocket/quality-config type-check && pnpm --filter @busirocket/quality-config lint`
+Run:
+`pnpm --filter @busirocket/quality-config type-check && pnpm --filter @busirocket/quality-config lint`
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -575,10 +674,12 @@ indirection and turbo produce false positives on both."
 ### Task 6: Wire knip at the repo root
 
 **Files:**
+
 - Create: `knip.config.ts` (root)
 - Modify: `package.json` (root — `devDependencies`, `scripts.knip`)
 
 **Interfaces:**
+
 - Consumes: `createKnipConfig` from Task 5.
 - Produces: `pnpm knip` at the root. Task 15 folds it into `check:quality`.
 
@@ -588,7 +689,9 @@ Run: `pnpm add -D -w knip@^6.31.0 @busirocket/quality-config@workspace:*`
 
 - [ ] **Step 2: Write the root config**
 
-Knip reads pnpm workspaces natively. The root config declares the workspace map; each template's own `knip.config.ts` (Task 8) is **not** used by the root run, so the root config carries per-workspace entry points:
+Knip reads pnpm workspaces natively. The root config declares the workspace map;
+each template's own `knip.config.ts` (Task 8) is **not** used by the root run,
+so the root config carries per-workspace entry points:
 
 `knip.config.ts`:
 
@@ -638,14 +741,18 @@ Root `package.json`: `"knip": "knip"`.
 
 Run: `pnpm knip`
 
-The first run on an eight-template monorepo will report false positives. Tune **only** by narrowing entry/project globs or adding specific `ignoreDependencies` entries with a comment explaining each. Do **not** demote a rule from `error` to `warn` to get green — that discards the finding.
+The first run on an eight-template monorepo will report false positives. Tune
+**only** by narrowing entry/project globs or adding specific
+`ignoreDependencies` entries with a comment explaining each. Do **not** demote a
+rule from `error` to `warn` to get green — that discards the finding.
 
-For each remaining finding, decide: real dead code (delete it) or false positive (narrow the glob). Record any judgement call you are unsure about in `TODO.md` rather than silently ignoring it.
+For each remaining finding, decide: real dead code (delete it) or false positive
+(narrow the glob). Record any judgement call you are unsure about in `TODO.md`
+rather than silently ignoring it.
 
 - [ ] **Step 5: Verify green**
 
-Run: `pnpm knip`
-Expected: exit 0.
+Run: `pnpm knip` Expected: exit 0.
 
 - [ ] **Step 6: Prove the gate bites**
 
@@ -656,8 +763,8 @@ Add to `packages/quality-config/src/knip.ts`:
 export const deadExportProbe = 'unused'
 ```
 
-Run: `pnpm knip`
-Expected: FAIL, reporting `deadExportProbe` as an unused export.
+Run: `pnpm knip` Expected: FAIL, reporting `deadExportProbe` as an unused
+export.
 
 - [ ] **Step 7: Revert the probe and confirm green**
 
@@ -665,6 +772,7 @@ Expected: FAIL, reporting `deadExportProbe` as an unused export.
 git checkout packages/quality-config/src/knip.ts
 pnpm knip
 ```
+
 Expected: exit 0.
 
 - [ ] **Step 8: Commit**
@@ -683,11 +791,16 @@ gate in the repo that can see code nothing reaches."
 ### Task 7: dependency-cruiser config factory
 
 **Files:**
+
 - Modify: `packages/quality-config/src/dependency-cruiser.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
-- Produces: `createDepCruiserConfig(options: { tsConfigPath?: string }): IConfiguration` (the `IConfiguration` type comes from `dependency-cruiser`). Task 9 consumes it at the root.
+- Produces:
+  `createDepCruiserConfig(options: { tsConfigPath?: string }): IConfiguration`
+  (the `IConfiguration` type comes from `dependency-cruiser`). Task 9 consumes
+  it at the root.
 
 - [ ] **Step 1: Write the factory**
 
@@ -757,11 +870,13 @@ export const createDepCruiserConfig = (
       path: '(^|/)(dist|coverage|\\.next|\\.nuxt|\\.output|\\.astro|target)/',
     },
     tsPreCompilationDeps: true,
-    tsConfig: options.tsConfigPath ? { fileName: options.tsConfigPath } : undefined,
+    tsConfig: options.tsConfigPath
+      ? { fileName: options.tsConfigPath }
+      : undefined,
     enhancedResolveOptions: {
       exportsFields: ['exports'],
       conditionNames: ['import', 'require', 'node', 'default', 'types'],
-extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.vue'],
+      extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.vue'],
     },
   },
 })
@@ -769,8 +884,11 @@ extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.vue'],
 
 - [ ] **Step 2: Type-check and lint**
 
-Run: `pnpm --filter @busirocket/quality-config type-check && pnpm --filter @busirocket/quality-config lint`
-Expected: PASS. If `IConfiguration` rejects a property, read the installed type at `node_modules/dependency-cruiser/types/configuration.d.mts` and correct the shape — do not cast to `any` (the baseline bans it).
+Run:
+`pnpm --filter @busirocket/quality-config type-check && pnpm --filter @busirocket/quality-config lint`
+Expected: PASS. If `IConfiguration` rejects a property, read the installed type
+at `node_modules/dependency-cruiser/types/configuration.d.mts` and correct the
+shape — do not cast to `any` (the baseline bans it).
 
 - [ ] **Step 3: Commit**
 
@@ -787,10 +905,17 @@ boundaries, orphan modules, and packages reaching into templates."
 ### Task 8: Per-template knip configs
 
 **Files:**
-- Create: `templates/astro-site/knip.config.ts`, `templates/nestjs-app/knip.config.ts`, `templates/nextjs-app/knip.config.ts`, `templates/nuxt-app/knip.config.ts`, `templates/tauri-app/knip.config.ts`, `templates/ts-package/knip.config.ts`, `templates/vite-react-app/knip.config.ts`, `templates/vue-app/knip.config.ts`
-- Modify: the eight matching `templates/*/package.json` (`devDependencies`, `scripts.knip`, `scripts.check:ci`)
+
+- Create: `templates/astro-site/knip.config.ts`,
+  `templates/nestjs-app/knip.config.ts`, `templates/nextjs-app/knip.config.ts`,
+  `templates/nuxt-app/knip.config.ts`, `templates/tauri-app/knip.config.ts`,
+  `templates/ts-package/knip.config.ts`,
+  `templates/vite-react-app/knip.config.ts`, `templates/vue-app/knip.config.ts`
+- Modify: the eight matching `templates/*/package.json` (`devDependencies`,
+  `scripts.knip`, `scripts.check:ci`)
 
 **Interfaces:**
+
 - Consumes: `createKnipConfig` and `KnipFramework` from Task 5.
 - Produces: `pnpm knip` inside each scaffolded project.
 
@@ -798,16 +923,16 @@ boundaries, orphan modules, and packages reaching into templates."
 
 Each is three lines. The `framework` value per template:
 
-| File | `framework` |
-| --- | --- |
-| `templates/astro-site/knip.config.ts` | `'astro'` |
-| `templates/nestjs-app/knip.config.ts` | `'nestjs'` |
-| `templates/nextjs-app/knip.config.ts` | `'nextjs'` |
-| `templates/nuxt-app/knip.config.ts` | `'nuxt'` |
-| `templates/tauri-app/knip.config.ts` | `'tauri'` |
-| `templates/ts-package/knip.config.ts` | `'ts-package'` |
+| File                                      | `framework`    |
+| ----------------------------------------- | -------------- |
+| `templates/astro-site/knip.config.ts`     | `'astro'`      |
+| `templates/nestjs-app/knip.config.ts`     | `'nestjs'`     |
+| `templates/nextjs-app/knip.config.ts`     | `'nextjs'`     |
+| `templates/nuxt-app/knip.config.ts`       | `'nuxt'`       |
+| `templates/tauri-app/knip.config.ts`      | `'tauri'`      |
+| `templates/ts-package/knip.config.ts`     | `'ts-package'` |
 | `templates/vite-react-app/knip.config.ts` | `'vite-react'` |
-| `templates/vue-app/knip.config.ts` | `'vite-vue'` |
+| `templates/vue-app/knip.config.ts`        | `'vite-vue'`   |
 
 Content, with `<framework>` substituted:
 
@@ -820,25 +945,28 @@ export default createKnipConfig({ framework: '<framework>' })
 - [ ] **Step 2: Add dependency and scripts to each template**
 
 In each `templates/*/package.json`:
-- `devDependencies`: `"@busirocket/quality-config": "workspace:*"`, `"knip": "^6.31.0"`
+
+- `devDependencies`: `"@busirocket/quality-config": "workspace:*"`,
+  `"knip": "^6.31.0"`
 - `scripts.knip`: `"knip"`
 - `scripts.check:ci`: append `&& pnpm knip`
 
 - [ ] **Step 3: Install**
 
-Run: `pnpm install`
-Expected: PASS.
+Run: `pnpm install` Expected: PASS.
 
 - [ ] **Step 4: Run knip in every template and tune**
 
 Run: `pnpm -r --filter "./templates/*" knip`
 
-Expect findings — templates hold scaffolding nothing imports yet. Tune by narrowing the framework entry globs in `packages/quality-config/src/knip-framework.ts`, which fixes all templates of that framework at once. Real dead code gets deleted.
+Expect findings — templates hold scaffolding nothing imports yet. Tune by
+narrowing the framework entry globs in
+`packages/quality-config/src/knip-framework.ts`, which fixes all templates of
+that framework at once. Real dead code gets deleted.
 
 - [ ] **Step 5: Verify green**
 
-Run: `pnpm -r --filter "./templates/*" knip`
-Expected: exit 0 for all eight.
+Run: `pnpm -r --filter "./templates/*" knip` Expected: exit 0 for all eight.
 
 - [ ] **Step 6: Commit**
 
@@ -855,10 +983,12 @@ the entry globs live in one place instead of eight copies."
 ### Task 9: Wire dependency-cruiser at the repo root
 
 **Files:**
+
 - Create: `.dependency-cruiser.cjs` (root)
 - Modify: `package.json` (root — `devDependencies`, `scripts.deps:graph`)
 
 **Interfaces:**
+
 - Consumes: `createDepCruiserConfig` from Task 7.
 - Produces: `pnpm deps:graph`. Task 15 folds it into `check:quality`.
 
@@ -868,7 +998,10 @@ Run: `pnpm add -D -w dependency-cruiser@^18.1.0`
 
 - [ ] **Step 2: Write the root config**
 
-`dependency-cruiser` loads `.cjs` config natively; the factory is TypeScript, so the root file imports the published subpath through `jiti`, which the repo already depends on. Simpler and more robust: keep the root config a thin CommonJS wrapper that requires the compiled-free TS through `jiti`.
+`dependency-cruiser` loads `.cjs` config natively; the factory is TypeScript, so
+the root file imports the published subpath through `jiti`, which the repo
+already depends on. Simpler and more robust: keep the root config a thin
+CommonJS wrapper that requires the compiled-free TS through `jiti`.
 
 `.dependency-cruiser.cjs`:
 
@@ -885,7 +1018,8 @@ const { createDepCruiserConfig } = jiti(
 module.exports = createDepCruiserConfig({ tsConfigPath: './tsconfig.json' })
 ```
 
-If the root has no `tsconfig.json`, check first with `ls tsconfig.json`; if absent, call `createDepCruiserConfig()` with no argument.
+If the root has no `tsconfig.json`, check first with `ls tsconfig.json`; if
+absent, call `createDepCruiserConfig()` with no argument.
 
 - [ ] **Step 3: Add the script**
 
@@ -895,19 +1029,21 @@ Root `package.json`: `"deps:graph": "depcruise packages templates scripts"`.
 
 Run: `pnpm deps:graph`
 
-Tune by adjusting `exclude` paths in the factory, never by downgrading a rule to `info`. Orphan findings in templates are common — templates have entry points the graph cannot infer; extend the `no-orphans` `pathNot` list with a comment for each pattern added.
+Tune by adjusting `exclude` paths in the factory, never by downgrading a rule to
+`info`. Orphan findings in templates are common — templates have entry points
+the graph cannot infer; extend the `no-orphans` `pathNot` list with a comment
+for each pattern added.
 
 - [ ] **Step 5: Verify green**
 
-Run: `pnpm deps:graph`
-Expected: exit 0.
+Run: `pnpm deps:graph` Expected: exit 0.
 
 - [ ] **Step 6: Prove the gate catches a cycle ESLint misses**
 
-Recreate the three-file cycle from Task 2 in `templates/ts-package/src/` (`cycle-a.ts`, `cycle-b.ts`, `cycle-c.ts`, same contents).
+Recreate the three-file cycle from Task 2 in `templates/ts-package/src/`
+(`cycle-a.ts`, `cycle-b.ts`, `cycle-c.ts`, same contents).
 
-Run: `pnpm deps:graph`
-Expected: FAIL with `no-circular`.
+Run: `pnpm deps:graph` Expected: FAIL with `no-circular`.
 
 - [ ] **Step 7: Remove the probe and confirm green**
 
@@ -915,6 +1051,7 @@ Expected: FAIL with `no-circular`.
 rm templates/ts-package/src/cycle-a.ts templates/ts-package/src/cycle-b.ts templates/ts-package/src/cycle-c.ts
 pnpm deps:graph
 ```
+
 Expected: exit 0.
 
 - [ ] **Step 8: Commit**
@@ -934,12 +1071,18 @@ resolve across package boundaries."
 
 ### Task 10: Verify type-coverage works against the TypeScript 6 alias
 
-This repo aliases `typescript` to `npm:@typescript/typescript6` and type-checks with `@typescript/native`. `type-coverage` consumes the TypeScript compiler API, so compatibility is a genuine open question. **This task is a spike: its deliverable is a yes/no answer plus the recorded evidence.** Task 11 is conditional on it.
+This repo aliases `typescript` to `npm:@typescript/typescript6` and type-checks
+with `@typescript/native`. `type-coverage` consumes the TypeScript compiler API,
+so compatibility is a genuine open question. **This task is a spike: its
+deliverable is a yes/no answer plus the recorded evidence.** Task 11 is
+conditional on it.
 
 **Files:**
+
 - Modify: `TODO.md` (create it if absent) if the answer is no
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: a verdict consumed by Task 11.
 
@@ -951,14 +1094,18 @@ pnpm --filter @busirocket/eslint-config exec npx type-coverage@^2.30.1 --strict 
 
 - [ ] **Step 2: Record the outcome**
 
-If it prints a percentage, note the number — Task 11 pins the threshold to it. If it errors, capture the exact error line.
+If it prints a percentage, note the number — Task 11 pins the threshold to it.
+If it errors, capture the exact error line.
 
 - [ ] **Step 3: If it fails, record the debt and skip Task 11**
 
 Append to `TODO.md`:
 
 ```markdown
-- [!] `type-coverage` incompatible with the `@typescript/typescript6` alias — blocked. Error: `<exact error line>`. Smallest unblock: retry after the repo moves off the alias to a released TypeScript 6, or evaluate `tsc --noEmit --strict` + a custom `as`-cast counter instead.
+- [!] `type-coverage` incompatible with the `@typescript/typescript6` alias —
+  blocked. Error: `<exact error line>`. Smallest unblock: retry after the repo
+  moves off the alias to a released TypeScript 6, or evaluate
+  `tsc --noEmit --strict` + a custom `as`-cast counter instead.
 ```
 
 Then commit and mark Task 11 skipped:
@@ -977,12 +1124,18 @@ If it succeeds, no commit here — proceed to Task 11.
 **Conditional:** only if Task 10 returned a working percentage.
 
 **Files:**
+
 - Modify: `packages/quality-config/src/type-coverage.ts`
-- Modify: eight `templates/*/package.json`, `packages/eslint-config/package.json`, `packages/eslint-plugin-code-policy/package.json`, `packages/quality-config/package.json`
+- Modify: eight `templates/*/package.json`,
+  `packages/eslint-config/package.json`,
+  `packages/eslint-plugin-code-policy/package.json`,
+  `packages/quality-config/package.json`
 - Modify: `turbo.json`, `package.json` (root)
 
 **Interfaces:**
-- Consumes: `TYPE_COVERAGE_THRESHOLD` from Task 4's stub, now given its real value.
+
+- Consumes: `TYPE_COVERAGE_THRESHOLD` from Task 4's stub, now given its real
+  value.
 - Produces: `pnpm types:coverage` at the root, fanning out through Turbo.
 
 - [ ] **Step 1: Pin the threshold to the measured value**
@@ -999,15 +1152,22 @@ If it succeeds, no commit here — proceed to Task 11.
 export const TYPE_COVERAGE_THRESHOLD = 99
 ```
 
-If Task 10 measured below 99, set this to the **measured floor rounded down** and append the gap to `TODO.md` as debt. Never lower it for convenience beyond the measured value.
+If Task 10 measured below 99, set this to the **measured floor rounded down**
+and append the gap to `TODO.md` as debt. Never lower it for convenience beyond
+the measured value.
 
-This constant is the documented source of truth for the number; `package.json` scripts cannot import TypeScript, so the same value is written literally into each `types:coverage` script in the next step. When the threshold rises, both places change together — the constant's doc comment says so.
+This constant is the documented source of truth for the number; `package.json`
+scripts cannot import TypeScript, so the same value is written literally into
+each `types:coverage` script in the next step. When the threshold rises, both
+places change together — the constant's doc comment says so.
 
 - [ ] **Step 2: Add the dependency and script to every workspace**
 
 In each of the eleven `package.json` files listed above:
+
 - `devDependencies`: `"type-coverage": "^2.30.1"`
-- `scripts.types:coverage`: `"type-coverage --at-least 99 --strict --ignore-files \"**/*.d.ts\""`
+- `scripts.types:coverage`:
+  `"type-coverage --at-least 99 --strict --ignore-files \"**/*.d.ts\""`
 
 Substitute the pinned threshold for `99` if Step 1 changed it.
 
@@ -1027,8 +1187,7 @@ Root `package.json`: `"types:coverage": "turbo run types:coverage"`.
 
 - [ ] **Step 5: Run it**
 
-Run: `pnpm install && pnpm types:coverage`
-Expected: PASS everywhere.
+Run: `pnpm install && pnpm types:coverage` Expected: PASS everywhere.
 
 - [ ] **Step 6: Prove the gate bites**
 
@@ -1039,8 +1198,8 @@ Add to `packages/quality-config/src/type-coverage.ts`:
 export const castProbe = JSON.parse('{}') as unknown as { a: number }
 ```
 
-Run: `pnpm --filter @busirocket/quality-config types:coverage`
-Expected: FAIL, coverage below threshold.
+Run: `pnpm --filter @busirocket/quality-config types:coverage` Expected: FAIL,
+coverage below threshold.
 
 - [ ] **Step 7: Revert and confirm**
 
@@ -1048,7 +1207,9 @@ Expected: FAIL, coverage below threshold.
 git checkout packages/quality-config/src/type-coverage.ts
 pnpm types:coverage
 ```
-Expected: PASS. (This reverts the probe; re-apply Step 1's real content if the checkout also removed it — check the file before moving on.)
+
+Expected: PASS. (This reverts the probe; re-apply Step 1's real content if the
+checkout also removed it — check the file before moving on.)
 
 - [ ] **Step 8: Commit**
 
@@ -1064,31 +1225,43 @@ survives and ratchets it."
 
 ### Task 12: ESLint bulk suppressions ratchet
 
-Replaces betterer, which is unmaintained (last publish 2024-12-01, latest tag an alpha, pre-flat-config). ESLint 10.8.0 has the mechanism natively.
+Replaces betterer, which is unmaintained (last publish 2024-12-01, latest tag an
+alpha, pre-flat-config). ESLint 10.8.0 has the mechanism natively.
 
 **Files:**
-- Modify: eight `templates/*/package.json`, `packages/eslint-config/package.json`, `packages/eslint-plugin-code-policy/package.json`, `packages/quality-config/package.json`
+
+- Modify: eight `templates/*/package.json`,
+  `packages/eslint-config/package.json`,
+  `packages/eslint-plugin-code-policy/package.json`,
+  `packages/quality-config/package.json`
 - Modify: `turbo.json`, `package.json` (root)
 - Modify: `.gitignore`
 
 **Interfaces:**
+
 - Consumes: the `lint` scripts from Task 1.
-- Produces: `lint:suppress` per workspace and `pnpm lint:suppress` at the root. Task 18 documents the adoption workflow that uses it.
+- Produces: `lint:suppress` per workspace and `pnpm lint:suppress` at the root.
+  Task 18 documents the adoption workflow that uses it.
 
 - [ ] **Step 1: Confirm the flags exist in the installed ESLint**
 
-Run: `pnpm --filter my-nextjs-app exec eslint --help | grep -A5 "Suppressing Violations"`
-Expected: lists `--suppress-all`, `--suppress-rule`, `--suppressions-location`, `--prune-suppressions`, `--pass-on-unpruned-suppressions`.
+Run:
+`pnpm --filter my-nextjs-app exec eslint --help | grep -A5 "Suppressing Violations"`
+Expected: lists `--suppress-all`, `--suppress-rule`, `--suppressions-location`,
+`--prune-suppressions`, `--pass-on-unpruned-suppressions`.
 
 - [ ] **Step 2: Extend every lint script with the ratchet flag**
 
-Append ` --prune-suppressions` to each `lint` script (which already ends with `--max-warnings 0` from Task 1). Example for `nextjs-app`:
+Append ` --prune-suppressions` to each `lint` script (which already ends with
+`--max-warnings 0` from Task 1). Example for `nextjs-app`:
 
 ```json
 "lint": "eslint app src --max-warnings 0 --prune-suppressions",
 ```
 
-`--prune-suppressions` makes CI fail when a suppression is no longer needed, forcing its removal. That is the ratchet: the suppression count can only go down.
+`--prune-suppressions` makes CI fail when a suppression is no longer needed,
+forcing its removal. That is the ratchet: the suppression count can only go
+down.
 
 - [ ] **Step 3: Add the freeze script to every workspace**
 
@@ -1108,7 +1281,8 @@ In `turbo.json`:
 }
 ```
 
-`cache: false` because the task writes a file; a cached replay would produce no file.
+`cache: false` because the task writes a file; a cached replay would produce no
+file.
 
 - [ ] **Step 5: Add the root script**
 
@@ -1116,7 +1290,9 @@ Root `package.json`: `"lint:suppress": "turbo run lint:suppress"`.
 
 - [ ] **Step 6: Make sure suppression files are committed, not ignored**
 
-Check `.gitignore` does not exclude `eslint-suppressions.json`. It must be committed — it is the frozen baseline the whole team shares. Add an explanatory comment near any nearby ESLint entries:
+Check `.gitignore` does not exclude `eslint-suppressions.json`. It must be
+committed — it is the frozen baseline the whole team shares. Add an explanatory
+comment near any nearby ESLint entries:
 
 ```gitignore
 # eslint-suppressions.json is deliberately committed: it is the shared
@@ -1125,8 +1301,9 @@ Check `.gitignore` does not exclude `eslint-suppressions.json`. It must be commi
 
 - [ ] **Step 7: Verify the repo is clean, so no suppression file is generated**
 
-Run: `pnpm lint --force`
-Expected: PASS with no `eslint-suppressions.json` created anywhere (`git status --short` stays clean). This monorepo has no debt to freeze; the machinery exists for consumers.
+Run: `pnpm lint --force` Expected: PASS with no `eslint-suppressions.json`
+created anywhere (`git status --short` stays clean). This monorepo has no debt
+to freeze; the machinery exists for consumers.
 
 - [ ] **Step 8: Prove the ratchet works end to end**
 
@@ -1168,19 +1345,27 @@ Replaces betterer, unmaintained since 2024-12-01 and pre-flat-config."
 ### Task 13: Testing lint layer
 
 **Files:**
+
 - Create: `packages/eslint-config/src/testing.ts`
-- Modify: `packages/eslint-config/src/code-quality.ts`, `packages/eslint-config/package.json`, `packages/eslint-config/PUBLIC_API.md`
+- Modify: `packages/eslint-config/src/code-quality.ts`,
+  `packages/eslint-config/package.json`, `packages/eslint-config/PUBLIC_API.md`
 
 **Interfaces:**
+
 - Consumes: nothing.
-- Produces: `createTestingConfig(): Linter.Config[]`, exported at `@busirocket/eslint-config/testing` and composed into `createCodeQualityConfig`.
+- Produces: `createTestingConfig(): Linter.Config[]`, exported at
+  `@busirocket/eslint-config/testing` and composed into
+  `createCodeQualityConfig`.
 
 - [ ] **Step 1: Add the plugins as optional peers and devDependencies**
 
 `packages/eslint-config/package.json`:
-- `peerDependencies`: `"@vitest/eslint-plugin": ">=1.0.0"`, `"eslint-plugin-testing-library": ">=7.0.0"`
+
+- `peerDependencies`: `"@vitest/eslint-plugin": ">=1.0.0"`,
+  `"eslint-plugin-testing-library": ">=7.0.0"`
 - `peerDependenciesMeta`: both `{ "optional": true }`
-- `devDependencies`: `"@vitest/eslint-plugin": "^1.6.25"`, `"eslint-plugin-testing-library": "^7.16.2"`
+- `devDependencies`: `"@vitest/eslint-plugin": "^1.6.25"`,
+  `"eslint-plugin-testing-library": "^7.16.2"`
 - `exports`: `"./testing": "./src/testing.ts"`
 
 - [ ] **Step 2: Write the config**
@@ -1229,31 +1414,34 @@ export default createTestingConfig
 
 - [ ] **Step 3: Compose it into code-quality**
 
-In `packages/eslint-config/src/code-quality.ts`, add the import next to the existing sonar import:
+In `packages/eslint-config/src/code-quality.ts`, add the import next to the
+existing sonar import:
 
 ```ts
 import { createTestingConfig } from './testing'
 ```
 
-and add `...createTestingConfig(),` immediately after `...createCodeQualitySonarConfig(),` in the returned array.
+and add `...createTestingConfig(),` immediately after
+`...createCodeQualitySonarConfig(),` in the returned array.
 
 - [ ] **Step 4: Document the export**
 
 Add a row to `packages/eslint-config/PUBLIC_API.md`:
 
-| `@busirocket/eslint-config/testing` | Vitest + Testing Library rules for test files |
+| `@busirocket/eslint-config/testing` | Vitest + Testing Library rules for test
+files |
 
 - [ ] **Step 5: Install and run**
 
-Run: `pnpm install && pnpm lint --force`
-Expected: PASS. Fix any real findings in existing tests; do not disable a rule to get green.
+Run: `pnpm install && pnpm lint --force` Expected: PASS. Fix any real findings
+in existing tests; do not disable a rule to get green.
 
 - [ ] **Step 6: Prove the gate bites**
 
 In any template's existing test file, change one `it(` to `it.only(`.
 
-Run: `pnpm --filter <that-template> lint`
-Expected: FAIL with `vitest/no-focused-tests`.
+Run: `pnpm --filter <that-template> lint` Expected: FAIL with
+`vitest/no-focused-tests`.
 
 - [ ] **Step 7: Revert and confirm**
 
@@ -1261,6 +1449,7 @@ Expected: FAIL with `vitest/no-focused-tests`.
 git checkout <that test file>
 pnpm lint --force
 ```
+
 Expected: PASS.
 
 - [ ] **Step 8: Commit**
@@ -1280,17 +1469,19 @@ assertion, and un-awaited async queries. All pass a green build today."
 ### Task 14: Secret scanning with gitleaks
 
 **Files:**
+
 - Create: `.gitleaks.toml` (root)
 - Modify: `package.json` (root — `scripts.secrets:check`)
 
 **Interfaces:**
+
 - Consumes: nothing.
-- Produces: `pnpm secrets:check`. Task 15 folds it into `check:security`; Task 16 adds it to the pre-push hook.
+- Produces: `pnpm secrets:check`. Task 15 folds it into `check:security`; Task
+  16 adds it to the pre-push hook.
 
 - [ ] **Step 1: Confirm gitleaks is available locally**
 
-Run: `gitleaks version`
-If missing: `brew install gitleaks`, then re-run.
+Run: `gitleaks version` If missing: `brew install gitleaks`, then re-run.
 
 - [ ] **Step 2: Write the config**
 
@@ -1316,14 +1507,16 @@ paths = [
 
 Root `package.json`: `"secrets:check": "gitleaks detect --no-banner --redact"`.
 
-`--redact` keeps the matched secret out of CI logs, which are readable by anyone with repo access.
+`--redact` keeps the matched secret out of CI logs, which are readable by anyone
+with repo access.
 
 - [ ] **Step 4: Run it against full history**
 
-Run: `pnpm secrets:check`
-Expected: exit 0.
+Run: `pnpm secrets:check` Expected: exit 0.
 
-**If it reports a real finding, stop and report it to the user immediately** — a leaked credential needs rotation, not an allowlist entry. Never silence a true positive.
+**If it reports a real finding, stop and report it to the user immediately** — a
+leaked credential needs rotation, not an allowlist entry. Never silence a true
+positive.
 
 - [ ] **Step 5: Prove the gate bites**
 
@@ -1333,6 +1526,7 @@ cp /tmp/probe.env ./probe.env
 git add probe.env && git commit -m "temp: gitleaks probe"
 pnpm secrets:check
 ```
+
 Expected: FAIL, reporting the AWS key.
 
 - [ ] **Step 6: Remove the probe commit entirely**
@@ -1342,9 +1536,12 @@ git reset --hard HEAD~1
 rm -f probe.env /tmp/probe.env
 pnpm secrets:check
 ```
+
 Expected: exit 0, and `git log --oneline -1` shows the pre-probe commit.
 
-The `reset --hard` is safe here and only here: it drops exactly the probe commit created two steps earlier, with no other uncommitted work in the tree. Confirm `git status --short` is clean **before** running it.
+The `reset --hard` is safe here and only here: it drops exactly the probe commit
+created two steps earlier, with no other uncommitted work in the tree. Confirm
+`git status --short` is clean **before** running it.
 
 - [ ] **Step 7: Commit**
 
@@ -1362,11 +1559,15 @@ credential."
 ### Task 15: Dependency audit, workflow lint, and the CI split
 
 **Files:**
-- Modify: `package.json` (root — `check:quality`, `check:security`, `audit:check`, `workflows:check`)
+
+- Modify: `package.json` (root — `check:quality`, `check:security`,
+  `audit:check`, `workflows:check`)
 - Modify: `.github/workflows/ci.yml`
 
 **Interfaces:**
-- Consumes: `knip` (Task 6), `deps:graph` (Task 9), `types:coverage` (Task 11), `secrets:check` (Task 14), `publish:check` (Task 17).
+
+- Consumes: `knip` (Task 6), `deps:graph` (Task 9), `types:coverage` (Task 11),
+  `secrets:check` (Task 14), `publish:check` (Task 17).
 - Produces: three CI jobs. Task 17 adds `publish:check` into `check:quality`.
 
 - [ ] **Step 1: Add the two remaining security scripts**
@@ -1378,7 +1579,8 @@ Root `package.json`:
 "workflows:check": "actionlint",
 ```
 
-`--audit-level=high` deliberately ignores low and moderate advisories: a moderate in a devDependency blocking every PR trains people to bypass the gate.
+`--audit-level=high` deliberately ignores low and moderate advisories: a
+moderate in a devDependency blocking every PR trains people to bypass the gate.
 
 - [ ] **Step 2: Add the two aggregate scripts**
 
@@ -1387,16 +1589,18 @@ Root `package.json`:
 "check:security": "pnpm secrets:check && pnpm audit:check && pnpm workflows:check",
 ```
 
-If Task 10 blocked type-coverage, omit `pnpm types:coverage` from `check:quality` and note it in `TODO.md`.
+If Task 10 blocked type-coverage, omit `pnpm types:coverage` from
+`check:quality` and note it in `TODO.md`.
 
 - [ ] **Step 3: Run both locally**
 
-Run: `pnpm check:quality && pnpm check:security`
-Expected: PASS. `actionlint` may be absent locally — `brew install actionlint`.
+Run: `pnpm check:quality && pnpm check:security` Expected: PASS. `actionlint`
+may be absent locally — `brew install actionlint`.
 
 - [ ] **Step 4: Rewrite the CI workflow with three parallel jobs**
 
-`.github/workflows/ci.yml` — keep the existing `on:` and `concurrency:` blocks unchanged, replace the `jobs:` block:
+`.github/workflows/ci.yml` — keep the existing `on:` and `concurrency:` blocks
+unchanged, replace the `jobs:` block:
 
 ```yaml
 jobs:
@@ -1453,12 +1657,14 @@ jobs:
         uses: raven-actions/actionlint@v2
 ```
 
-The `security` job uses actions rather than `pnpm check:security` because `gitleaks` and `actionlint` are binaries absent from a bare runner. `check:security` remains the local-developer entry point; the job covers the same three checks.
+The `security` job uses actions rather than `pnpm check:security` because
+`gitleaks` and `actionlint` are binaries absent from a bare runner.
+`check:security` remains the local-developer entry point; the job covers the
+same three checks.
 
 - [ ] **Step 5: Validate the workflow file before pushing**
 
-Run: `actionlint`
-Expected: exit 0.
+Run: `actionlint` Expected: exit 0.
 
 - [ ] **Step 6: Commit**
 
@@ -1476,11 +1682,14 @@ gitleaks needs fetch-depth: 0 to see history."
 ### Task 16: Renovate and lefthook
 
 **Files:**
-- Create: `renovate.json` (root), `lefthook.yml` (root), `templates/*/renovate.json` (8), `templates/*/lefthook.yml` (8)
+
+- Create: `renovate.json` (root), `lefthook.yml` (root),
+  `templates/*/renovate.json` (8), `templates/*/lefthook.yml` (8)
 - Modify: `packages/quality-config/src/lefthook.ts`
 - Modify: `package.json` (root — `devDependencies`, `scripts.prepare`)
 
 **Interfaces:**
+
 - Consumes: `secrets:check` (Task 14).
 - Produces: `createLefthookConfig(): LefthookConfig` and installed git hooks.
 
@@ -1523,7 +1732,8 @@ gitleaks needs fetch-depth: 0 to see history."
 }
 ```
 
-Copy this file verbatim into each of the eight templates so scaffolded repos inherit it.
+Copy this file verbatim into each of the eight templates so scaffolded repos
+inherit it.
 
 - [ ] **Step 2: Write the lefthook factory**
 
@@ -1592,12 +1802,13 @@ Run: `pnpm add -D -w lefthook@^2.1.10`
 
 Root `package.json`: `"prepare": "lefthook install"`.
 
-Add `"lefthook": "^2.1.10"` to each template's `devDependencies` and `"prepare": "lefthook install"` to each template's scripts.
+Add `"lefthook": "^2.1.10"` to each template's `devDependencies` and
+`"prepare": "lefthook install"` to each template's scripts.
 
 - [ ] **Step 5: Install the hooks**
 
-Run: `pnpm install && pnpm exec lefthook install`
-Expected: `.git/hooks/pre-commit` and `.git/hooks/pre-push` exist.
+Run: `pnpm install && pnpm exec lefthook install` Expected:
+`.git/hooks/pre-commit` and `.git/hooks/pre-push` exist.
 
 - [ ] **Step 6: Prove the pre-commit hook blocks a bad commit**
 
@@ -1606,6 +1817,7 @@ printf '\nexport const hookProbe = (x: any): any => x\n' >> templates/ts-package
 git add templates/ts-package/src/index.ts
 git commit -m "temp: hook probe"
 ```
+
 Expected: the commit is **rejected** by the lint hook.
 
 - [ ] **Step 7: Clean up**
@@ -1615,6 +1827,7 @@ git reset
 git checkout templates/ts-package/src/index.ts
 git status --short
 ```
+
 Expected: only the intended new files remain staged/untracked.
 
 - [ ] **Step 8: Commit**
@@ -1635,18 +1848,28 @@ files only, and gitleaks on push. Type-check and tests stay in CI."
 ### Task 17: Package publishability gate
 
 **Files:**
-- Modify: `packages/eslint-config/package.json`, `packages/prettier-config/package.json`, `packages/tsconfig/package.json`, `packages/create-baseline/package.json`, `packages/eslint-plugin-code-policy/package.json`, `packages/quality-config/package.json`
-- Modify: `turbo.json`, `package.json` (root), `.github/workflows/publish.yml`, `scripts/sync-versions.mjs`
+
+- Modify: `packages/eslint-config/package.json`,
+  `packages/prettier-config/package.json`, `packages/tsconfig/package.json`,
+  `packages/create-baseline/package.json`,
+  `packages/eslint-plugin-code-policy/package.json`,
+  `packages/quality-config/package.json`
+- Modify: `turbo.json`, `package.json` (root), `.github/workflows/publish.yml`,
+  `scripts/sync-versions.mjs`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `pnpm publish:check`, folded into `check:quality`.
 
 - [ ] **Step 1: Add the tools and script to each published package**
 
 In all six `packages/*/package.json`:
-- `devDependencies`: `"publint": "^0.3.22"`, `"@arethetypeswrong/cli": "^0.18.5"`
-- `scripts.publish:check`: `"publint --strict && attw --pack . --profile node16"`
+
+- `devDependencies`: `"publint": "^0.3.22"`,
+  `"@arethetypeswrong/cli": "^0.18.5"`
+- `scripts.publish:check`:
+  `"publint --strict && attw --pack . --profile node16"`
 
 - [ ] **Step 2: Add the Turbo task**
 
@@ -1658,7 +1881,8 @@ In all six `packages/*/package.json`:
 }
 ```
 
-`build` (not just `^build`) because `eslint-plugin-code-policy` publishes `dist/`, which must exist before its `exports` map can be validated.
+`build` (not just `^build`) because `eslint-plugin-code-policy` publishes
+`dist/`, which must exist before its `exports` map can be validated.
 
 - [ ] **Step 3: Add the root script and fold it into check:quality**
 
@@ -1673,13 +1897,22 @@ Root `package.json`:
 
 Run: `pnpm publish:check`
 
-`attw` will likely flag the TypeScript-source packages (`eslint-config`, `quality-config`), which ship `.ts` directly rather than compiled output with declarations. That is a deliberate, documented choice in this repo, not a defect. Where a finding reflects that choice, add the specific rule to the package's `attw` invocation with a comment, e.g. `--ignore-rules no-resolution`, and record the reasoning in that package's `PUBLIC_API.md`. Do not blanket-disable `attw`.
+`attw` will likely flag the TypeScript-source packages (`eslint-config`,
+`quality-config`), which ship `.ts` directly rather than compiled output with
+declarations. That is a deliberate, documented choice in this repo, not a
+defect. Where a finding reflects that choice, add the specific rule to the
+package's `attw` invocation with a comment, e.g. `--ignore-rules no-resolution`,
+and record the reasoning in that package's `PUBLIC_API.md`. Do not
+blanket-disable `attw`.
 
 - [ ] **Step 5: Register quality-config for publishing**
 
-`.github/workflows/publish.yml`: add `- quality-config` to the `package` input `options` list.
+`.github/workflows/publish.yml`: add `- quality-config` to the `package` input
+`options` list.
 
-`scripts/sync-versions.mjs`: add `'@busirocket/quality-config'` to `BASELINE_CONSUMER_PACKAGES`, and add the new third-party pins to `THIRD_PARTY_PINS`:
+`scripts/sync-versions.mjs`: add `'@busirocket/quality-config'` to
+`BASELINE_CONSUMER_PACKAGES`, and add the new third-party pins to
+`THIRD_PARTY_PINS`:
 
 ```js
 const THIRD_PARTY_PINS = {
@@ -1695,15 +1928,15 @@ Omit `type-coverage` if Task 10 blocked it.
 
 - [ ] **Step 6: Verify the sync**
 
-Run: `pnpm sync-versions && pnpm sync-versions:check`
-Expected: PASS, and `packages/create-baseline/baseline-versions.json` now contains the new entries.
+Run: `pnpm sync-versions && pnpm sync-versions:check` Expected: PASS, and
+`packages/create-baseline/baseline-versions.json` now contains the new entries.
 
 - [ ] **Step 7: Prove the gate bites**
 
-In `packages/tsconfig/package.json`, point one `exports` subpath at a nonexistent file.
+In `packages/tsconfig/package.json`, point one `exports` subpath at a
+nonexistent file.
 
-Run: `pnpm --filter @busirocket/tsconfig publish:check`
-Expected: FAIL.
+Run: `pnpm --filter @busirocket/tsconfig publish:check` Expected: FAIL.
 
 - [ ] **Step 8: Revert and confirm**
 
@@ -1711,6 +1944,7 @@ Expected: FAIL.
 git checkout packages/tsconfig/package.json
 pnpm publish:check
 ```
+
 Expected: PASS.
 
 - [ ] **Step 9: Commit**
@@ -1729,16 +1963,24 @@ version sync so consumer pins cannot drift."
 ### Task 18: Documentation and create-baseline
 
 **Files:**
+
 - Create: `docs/standards/quality-gates.md`
-- Modify: `docs/adoption/existing-repo.md`, `docs/adoption/new-repo.md`, `README.md`, `packages/create-baseline/*` (scaffolding), `packages/create-baseline/README.md`
+- Modify: `docs/adoption/existing-repo.md`, `docs/adoption/new-repo.md`,
+  `README.md`, `packages/create-baseline/*` (scaffolding),
+  `packages/create-baseline/README.md`
 
 **Interfaces:**
+
 - Consumes: every gate from Tasks 1–17.
 - Produces: the adoption path. Terminal task.
 
 - [ ] **Step 1: Write the gate reference**
 
-`docs/standards/quality-gates.md`, one section per gate, each answering: what it detects, where it runs, its threshold, why that threshold, and how to handle a false positive. Cover: `--max-warnings 0`, `import/no-cycle`, jscpd, knip, dependency-cruiser, type-coverage, ESLint suppressions, vitest/testing-library rules, gitleaks, `pnpm audit`, actionlint, publint/attw, lefthook, Renovate.
+`docs/standards/quality-gates.md`, one section per gate, each answering: what it
+detects, where it runs, its threshold, why that threshold, and how to handle a
+false positive. Cover: `--max-warnings 0`, `import/no-cycle`, jscpd, knip,
+dependency-cruiser, type-coverage, ESLint suppressions, vitest/testing-library
+rules, gitleaks, `pnpm audit`, actionlint, publint/attw, lefthook, Renovate.
 
 State plainly for each: **never lower a threshold to get green.**
 
@@ -1749,8 +1991,8 @@ Add to `docs/adoption/existing-repo.md`:
 ````markdown
 ## Adopting on a codebase with existing violations
 
-A large existing codebase will report thousands of violations on day one.
-Freeze them instead of fixing them all up front, then let the count fall:
+A large existing codebase will report thousands of violations on day one. Freeze
+them instead of fixing them all up front, then let the count fall:
 
 ```bash
 pnpm lint:suppress   # writes eslint-suppressions.json — commit it
@@ -1762,14 +2004,22 @@ pnpm lint            # passes: existing violations are frozen, new ones fail
 Because every `lint` script runs with `--prune-suppressions`, fixing real debt
 makes its suppression unused and CI fails until the entry is removed. The
 suppression count can therefore only go down. Never regenerate the file with
-`--suppress-all` to clear a failure — that re-freezes debt someone just paid off.
+`--suppress-all` to clear a failure — that re-freezes debt someone just paid
+off.
 ````
 
 - [ ] **Step 3: Extend create-baseline's config check**
 
-`packages/create-baseline/bin/create-baseline.mjs` (138 lines) does **not** copy files. It reads `baseline-versions.json`, reports which baseline packages are missing from the target's `package.json`, and under `--hard` asserts an `eslint.config.*` exists (`hasEslintConfig`, lines 45–61). Follow that shape rather than adding a scaffolder.
+`packages/create-baseline/bin/create-baseline.mjs` (138 lines) does **not** copy
+files. It reads `baseline-versions.json`, reports which baseline packages are
+missing from the target's `package.json`, and under `--hard` asserts an
+`eslint.config.*` exists (`hasEslintConfig`, lines 45–61). Follow that shape
+rather than adding a scaffolder.
 
-Add a sibling check next to `hasEslintConfig`, as its own function per the Atomic File Rule — a new file is not possible here (the CLI is a single published `.mjs`), so keep it a separate top-level function in the same file, matching how `hasEslintConfig` already sits alongside `missingBaseline`:
+Add a sibling check next to `hasEslintConfig`, as its own function per the
+Atomic File Rule — a new file is not possible here (the CLI is a single
+published `.mjs`), so keep it a separate top-level function in the same file,
+matching how `hasEslintConfig` already sits alongside `missingBaseline`:
 
 ```js
 const QUALITY_CONFIG_FILES = [
@@ -1792,13 +2042,20 @@ async function missingQualityConfigs(root) {
 }
 ```
 
-`knip.config.ts` and `knip.config.js` are alternatives — treat the pair as satisfied if either exists, so filter the report accordingly rather than demanding both.
+`knip.config.ts` and `knip.config.js` are alternatives — treat the pair as
+satisfied if either exists, so filter the report accordingly rather than
+demanding both.
 
-Wire it into `main()` in the `--soft` branch as advice, and into the `--hard` branch as a failure, matching the existing `eslintOk` handling exactly (lines 105–109 and 121–126). `@busirocket/quality-config` already reaches `baseline-versions.json` through Task 17's `sync-versions.mjs` change, so the install line needs no edit.
+Wire it into `main()` in the `--soft` branch as advice, and into the `--hard`
+branch as a failure, matching the existing `eslintOk` handling exactly (lines
+105–109 and 121–126). `@busirocket/quality-config` already reaches
+`baseline-versions.json` through Task 17's `sync-versions.mjs` change, so the
+install line needs no edit.
 
 - [ ] **Step 4: Update the README pipeline section**
 
-In `README.md`, extend the "Turborepo & Check Pipeline" section to describe the three CI jobs and name each new gate in one line, matching the existing tone.
+In `README.md`, extend the "Turborepo & Check Pipeline" section to describe the
+three CI jobs and name each new gate in one line, matching the existing tone.
 
 - [ ] **Step 5: Verify the CLI against a bare project**
 
@@ -1809,7 +2066,8 @@ node /Users/cristiandeluxe/p/baseline/packages/create-baseline/bin/create-baseli
 node /Users/cristiandeluxe/p/baseline/packages/create-baseline/bin/create-baseline.mjs --hard; echo "exit=$?"
 ```
 
-Expected: `--soft` lists `knip.config.ts`, `lefthook.yml` and `renovate.json` as missing; `--hard` exits 1 naming them.
+Expected: `--soft` lists `knip.config.ts`, `lefthook.yml` and `renovate.json` as
+missing; `--hard` exits 1 naming them.
 
 Then confirm the inverse:
 
@@ -1818,7 +2076,8 @@ touch knip.config.ts lefthook.yml renovate.json
 node /Users/cristiandeluxe/p/baseline/packages/create-baseline/bin/create-baseline.mjs --hard; echo "exit=$?"
 ```
 
-Expected: the config-file check no longer complains (the run still exits 1 on missing baseline packages, which is correct for a bare project).
+Expected: the config-file check no longer complains (the run still exits 1 on
+missing baseline packages, which is correct for a bare project).
 
 - [ ] **Step 6: Clean up the probe**
 
@@ -1832,6 +2091,7 @@ cd /Users/cristiandeluxe/p/baseline && rm -rf /tmp/baseline-cli-probe
 cd /Users/cristiandeluxe/p/baseline
 pnpm check:all && pnpm check:quality && pnpm check:security
 ```
+
 Expected: all three PASS.
 
 - [ ] **Step 8: Commit**
@@ -1852,6 +2112,8 @@ new project inherits every gate instead of only the linting."
 - [ ] `pnpm check:quality` passes
 - [ ] `pnpm check:security` passes
 - [ ] `git status --short` is clean — no verification probe survived
-- [ ] `grep -rn "eslint-disable" --include="*.ts" packages/quality-config/src` returns nothing
+- [ ] `grep -rn "eslint-disable" --include="*.ts" packages/quality-config/src`
+      returns nothing
 - [ ] CI is green across `verify`, `quality`, and `security`
-- [ ] Any gate that was dropped (e.g. type-coverage, per Task 10) is recorded in `TODO.md` with the exact blocker and the smallest unblocking action
+- [ ] Any gate that was dropped (e.g. type-coverage, per Task 10) is recorded in
+      `TODO.md` with the exact blocker and the smallest unblocking action
