@@ -88,7 +88,9 @@ Today no lint script passes `--max-warnings 0`, so `complexity: 10`, `max-depth:
 
 - [ ] **Step 1: Confirm the repo is currently clean (the failing-test equivalent)**
 
-Run: `pnpm lint -- --max-warnings 0 --force 2>&1 | tail -30`
+Run: `pnpm lint --force -- --max-warnings 0 2>&1 | tail -30`
+
+Flag order matters: `--force` must land before pnpm's `--` so Turbo consumes it as its own cache-bypass flag. Everything after `--` is forwarded to each package's `eslint` invocation, which rejects `--force`.
 
 Expected: exit 0. If it reports warnings, **stop and list them** — they must be fixed in this task before the flag goes in, or the flag is a lie. Do not proceed by relaxing rules.
 
@@ -174,23 +176,26 @@ warnings today, so the flag costs no debt."
 
 - [ ] **Step 1: Write the failing case**
 
-Create three files inside `templates/ts-package/src/`:
+Create three files inside `templates/ts-package/src/`. The blank line after each import is required: the repo enforces `import/newline-after-import` as an error, and without it lint fails on formatting before `import/no-cycle` is ever evaluated — masking the test.
 
 ```ts
 // cycle-a.ts
 import { fromB } from './cycle-b'
+
 export const fromA = (): string => `a${fromB()}`
 ```
 
 ```ts
 // cycle-b.ts
 import { fromC } from './cycle-c'
+
 export const fromB = (): string => `b${fromC()}`
 ```
 
 ```ts
 // cycle-c.ts
 import { fromA } from './cycle-a'
+
 export const fromC = (): string => `c${String(fromA)}`
 ```
 
@@ -213,6 +218,19 @@ with:
 // No maxDepth: shallow caps miss exactly the long cycles that tangle
 // large codebases. `allowUnsafeDynamicCyclicDependency` stays off.
 'import/no-cycle': ['error', { ignoreExternal: true }],
+```
+
+**This alone does not work**, and Step 4 will still pass if you stop here. `eslint-plugin-import` gates its export-map builder on `settings['import/extensions']`, which defaults to `['.js', '.mjs', '.cjs']`. The config never set it, so every `.ts` file was rejected before parsing and `import/no-cycle` found nothing at any depth. The same mechanism silently disabled `import/export`, `import/namespace`, and `import/no-unused-modules` on TypeScript.
+
+Extend the `settings` block in the same config object:
+
+```ts
+settings: {
+  'import/resolver': { typescript: true },
+  // Without this, eslint-plugin-import's export-map builder rejects .ts
+  // outright and every cross-file import rule is silently inert.
+  'import/extensions': ['.js', '.mjs', '.cjs', '.ts', '.tsx'],
+},
 ```
 
 - [ ] **Step 4: Confirm the cycle is now caught**
