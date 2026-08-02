@@ -86,21 +86,21 @@ type-coverage 2, lefthook 2, gitleaks, actionlint, publint,
 
 **Modified:**
 
-| File                                               | Change                                                                                                                                                                            |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `package.json` (root)                              | New scripts: `knip`, `deps:graph`, `types:coverage`, `publish:check`, `lint:suppress`, `check:quality`, `check:security`; `check:ci` gains `perf:check`, drops duplicated `dupes` |
-| `turbo.json`                                       | New tasks: `types:coverage`, `publish:check`, `lint:suppress`                                                                                                                     |
-| `packages/eslint-config/src/base.ts:87`            | `import/no-cycle` full depth                                                                                                                                                      |
-| `packages/eslint-config/src/code-quality.ts`       | Compose the new testing layer                                                                                                                                                     |
-| `packages/eslint-config/package.json`              | New `./testing` export, new optional peers                                                                                                                                        |
-| `templates/*/package.json`                         | `lint` gains `--max-warnings 0 --prune-suppressions`; new `lint:suppress`, `types:coverage` (8 files)                                                                             |
-| `packages/*/package.json`                          | Same, plus `publish:check` on published packages                                                                                                                                  |
-| `.github/workflows/ci.yml`                         | Three parallel jobs                                                                                                                                                               |
-| `.github/workflows/publish.yml`                    | `quality-config` added to the package choice list                                                                                                                                 |
-| `scripts/sync-versions.mjs`                        | `@busirocket/quality-config` in `BASELINE_CONSUMER_PACKAGES`; new tools in `THIRD_PARTY_PINS`                                                                                     |
-| `packages/create-baseline/bin/create-baseline.mjs` | Check for the new config files, matching the existing `eslint.config.*` check                                                                                                     |
-| `docs/adoption/existing-repo.md`                   | Freeze-and-ratchet adoption workflow                                                                                                                                              |
-| `README.md`                                        | Pipeline section covers the new gates                                                                                                                                             |
+| File                                               | Change                                                                                                                                                                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json` (root)                              | New scripts: `knip`, `deps:graph`, `types:coverage`, `publish:check`, `lint:suppress`, `check:quality`, `check:security`; drops duplicated `dupes` (perf:check moved to a CI step, see Task 3) |
+| `turbo.json`                                       | New tasks: `types:coverage`, `publish:check`, `lint:suppress`                                                                                                                                  |
+| `packages/eslint-config/src/base.ts:87`            | `import/no-cycle` full depth                                                                                                                                                                   |
+| `packages/eslint-config/src/code-quality.ts`       | Compose the new testing layer                                                                                                                                                                  |
+| `packages/eslint-config/package.json`              | New `./testing` export, new optional peers                                                                                                                                                     |
+| `templates/*/package.json`                         | `lint` gains `--max-warnings 0 --prune-suppressions`; new `lint:suppress`, `types:coverage` (8 files)                                                                                          |
+| `packages/*/package.json`                          | Same, plus `publish:check` on published packages                                                                                                                                               |
+| `.github/workflows/ci.yml`                         | Three parallel jobs                                                                                                                                                                            |
+| `.github/workflows/publish.yml`                    | `quality-config` added to the package choice list                                                                                                                                              |
+| `scripts/sync-versions.mjs`                        | `@busirocket/quality-config` in `BASELINE_CONSUMER_PACKAGES`; new tools in `THIRD_PARTY_PINS`                                                                                                  |
+| `packages/create-baseline/bin/create-baseline.mjs` | Check for the new config files, matching the existing `eslint.config.*` check                                                                                                                  |
+| `docs/adoption/existing-repo.md`                   | Freeze-and-ratchet adoption workflow                                                                                                                                                           |
+| `README.md`                                        | Pipeline section covers the new gates                                                                                                                                                          |
 
 ---
 
@@ -358,12 +358,30 @@ In the root `package.json`:
 
 ```json
 "check:all": "turbo run type-check lint:fix && pnpm format && pnpm dupes",
-"check:ci": "pnpm sync-versions:check && turbo run type-check lint test build && pnpm format:check && pnpm dupes && pnpm perf:check",
+"check:ci": "pnpm sync-versions:check && turbo run type-check lint test build && pnpm format:check && pnpm dupes",
 ```
 
 The per-package `dupes` is gone from the Turbo task list; the root `pnpm dupes`
-is the cross-file gate and stays. `perf:check` runs last because it needs the
-builds that precede it.
+is the cross-file gate and stays.
+
+**`perf:check` does not go in `check:ci`.** That was the original instruction
+and it does not work. Lighthouse cannot obtain a first contentful paint under
+headless Chrome on macOS: `NO_FCP`, exit 1, reproduced both in an automated
+shell and by the maintainer in an interactive terminal, and unchanged by
+`--headless=new --no-sandbox` on all six templates. Inside `check:ci` it made
+the pipeline permanently red on `vite-react-app` and `tauri-app` while passing
+vacuously (`0 URL(s), 0 total run(s)`) elsewhere.
+
+Add it instead as a step of the `verify` job in `.github/workflows/ci.yml`,
+after the `check:ci` step:
+
+```yaml
+- name: Performance budget
+  run: pnpm run perf:check
+```
+
+Carry that step forward when Task 15 splits the workflow into three jobs, and
+comment it there so nobody moves it back into `check:ci`.
 
 - [ ] **Step 3: Run the full pipeline**
 
