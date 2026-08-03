@@ -103,7 +103,7 @@ type-coverage 2, lefthook 2, gitleaks, actionlint, publint,
 | `packages/eslint-config/src/base.ts:87`            | `import/no-cycle` full depth                                                                                                                                                                   |
 | `packages/eslint-config/src/code-quality.ts`       | Compose the new testing layer                                                                                                                                                                  |
 | `packages/eslint-config/package.json`              | New `./testing` export, new optional peers                                                                                                                                                     |
-| `templates/*/package.json`                         | `lint` gains `--max-warnings 0 --prune-suppressions`; new `lint:suppress`, `types:coverage` (8 files)                                                                                          |
+| `templates/*/package.json`                         | `lint` gains `--max-warnings 0`; new `lint:suppress`, `lint:prune`, `types:coverage` (8 files)                                                                                                 |
 | `packages/*/package.json`                          | Same, plus `publish:check` on published packages                                                                                                                                               |
 | `.github/workflows/ci.yml`                         | Three parallel jobs                                                                                                                                                                            |
 | `.github/workflows/publish.yml`                    | `quality-config` added to the package choice list                                                                                                                                              |
@@ -137,8 +137,9 @@ debt — but that must be confirmed, not assumed.
 **Interfaces:**
 
 - Consumes: nothing.
-- Produces: every `lint` script fails on any warning. Task 7 extends these same
-  scripts with `--prune-suppressions`.
+- Produces: every `lint` script fails on any warning. Task 12 adds
+  `lint:suppress`/`lint:prune` as separate scripts alongside these; `lint`
+  itself stays `--max-warnings 0` and remains the gate.
 
 - [ ] **Step 1: Confirm the repo is currently clean (the failing-test
       equivalent)**
@@ -1291,18 +1292,21 @@ Run:
 Expected: lists `--suppress-all`, `--suppress-rule`, `--suppressions-location`,
 `--prune-suppressions`, `--pass-on-unpruned-suppressions`.
 
-- [ ] **Step 2: Extend every lint script with the ratchet flag**
+- [ ] **Step 2: Add the prune script, kept off the gate**
 
-Append ` --prune-suppressions` to each `lint` script (which already ends with
-`--max-warnings 0` from Task 1). Example for `nextjs-app`:
+Do not append `--prune-suppressions` to `lint` itself: ESLint prunes the
+suppressions file to disk before it evaluates whether any entry is stale, so a
+`lint` run carrying that flag always sees a freshly emptied file and passes
+silently - putting it on the gate disables the gate. `lint` stays exactly as
+Task 1 left it (`--max-warnings 0`). Add a separate `lint:prune` script instead,
+mirroring each workspace's own lint paths. Example for `nextjs-app`:
 
 ```json
-"lint": "eslint app src --max-warnings 0 --prune-suppressions",
+"lint:prune": "eslint app src --prune-suppressions",
 ```
 
-`--prune-suppressions` makes CI fail when a suppression is no longer needed,
-forcing its removal. That is the ratchet: the suppression count can only go
-down.
+That is the ratchet's cleanup half: a human runs it after fixing real debt to
+remove the now-stale suppression entry. The suppression count can only go down.
 
 - [ ] **Step 3: Add the freeze script to every workspace**
 
@@ -2042,11 +2046,13 @@ pnpm lint            # passes: existing violations are frozen, new ones fail
 
 `eslint-suppressions.json` is committed deliberately: it is the shared baseline.
 
-Because every `lint` script runs with `--prune-suppressions`, fixing real debt
-makes its suppression unused and CI fails until the entry is removed. The
-suppression count can therefore only go down. Never regenerate the file with
-`--suppress-all` to clear a failure — that re-freezes debt someone just paid
-off.
+`lint` runs plain `eslint --max-warnings 0`. That alone is the ratchet: ESLint
+checks the committed suppressions file for entries that no longer match a real
+violation and fails with an explicit message when it finds one - so fixing real
+debt makes its suppression stale and `lint` fails until the entry is removed
+with `pnpm lint:prune`. The suppression count can therefore only go down. Never
+regenerate the file with `--suppress-all` to clear a failure - that re-freezes
+debt someone just paid off.
 ````
 
 - [ ] **Step 3: Extend create-baseline's config check**
