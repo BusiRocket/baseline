@@ -13,9 +13,21 @@ verified complete - `[-]` obsolete or superseded.
   wired (baseline, calculadora). What remains needs a per-repo decision, except
   the lockfiles, which the 2026-08-31 release unblocked:
 
-  - Lockfile sync in 13 repos: unblocked as of 2026-08-31, the packages the
-    lockfiles could not resolve are published. Re-run `pnpm install` per repo,
-    plus `pnpm run prepare` in pxpn.
+  - Lockfile sync: **done 2026-08-31.** 12 repos were stale (brain-capture,
+    busirocket, contratos, dj-rocket, inbox-companion, livesalescoach,
+    Mains.World, nubenode-web, pxpn, verticagtm, vexa-mail, Calculadora); all 12
+    now pass `pnpm install --frozen-lockfile`. The changes are left uncommitted
+    in each repo, alongside the 2026-08-28 sweep's, for a per-repo review.
+  - [!] `pnpm run prepare` in pxpn still fails, and will until 2026-09-01
+    ~10:18Z. Not a wiring problem: pxpn enforces pnpm's `minimumReleaseAge`, and
+    the three packages released today sit inside the 24-hour cutoff -
+    `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION ... @busirocket/eslint-config@0.8.0 was published at 2026-08-31T09:54:54.000Z`.
+    The install itself succeeds; it is the policy verification that rejects it.
+    This applies to every consumer enforcing the policy, so hold the remaining
+    `--fix` adoptions (the `vers` column: brain, intelifactu,
+    pridefamilymedicine, rocket-agents, tieneslavibra, vexa,
+    vexa-insight-dashboard) until the cutoff passes rather than adding per-repo
+    exclusions to a supply-chain gate.
   - Action pins (`pins` column): tag-pinned actions in busirocket, contratos,
     dj-rocket, Mains.World, vexa - repin to commit SHAs, per repo.
   - Coverage (`cov` column): vitest configs without a `coverage:` block the
