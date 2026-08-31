@@ -5,6 +5,31 @@ Active backlog for the `baseline` repo. Closed items move to `TODO_LOG.md`.
 States: `[ ]` pending - `[~]` partial or unverified - `[!]` blocked - `[x]`
 verified complete - `[-]` obsolete or superseded.
 
+## Python baseline
+
+- [!] Publish `busirocket-baseline-py` 0.1.0. Blocked on one manual step only:
+  create the trusted-publisher entry on pypi.org - organization `BusiRocket`,
+  repository `baseline`, workflow `publish-python.yml`, environment `pypi`. Then
+  `gh workflow run publish-python.yml -f package=baseline-py`. Until it is
+  published, `templates/python-package`'s lockfile cannot resolve, because its
+  quality group depends on the package.
+- [ ] Adopt the baseline per repository, in the order the estate report argues:
+      `atrium` (59 findings), then `agentmeter` and `clawd-pet` (declare
+      `source-roots = ["host/src"]` first), then `djplayerdeluxe`, then
+      `mempalace` with a recorded baseline. Each is its own reviewed change; see
+      `docs/reports/2026-08-31-python-estate-baseline.md`.
+- [ ] Decide what to do about `mempalace`'s 402 inline-SQL findings before
+      touching them. Externalising the queries of a SQLite-backed memory palace
+      is a project, not a cleanup; the alternatives are a reasoned
+      `[[overrides]]` entry or a staged migration tracked in the baseline.
+- [ ] Wire `vulture` and `jscpd` into the gate as advisory stages, then decide
+      from measurement whether either can block. Both were deliberately left out
+      of v1: vulture's false positives on decorators and registries are
+      expensive, and jscpd's Python noise is uncalibrated.
+- [ ] Revisit the pyrefly shadow stage once a quarter of CI artifacts exists.
+      Promotion criteria are crash rate, runtime and memory against mypy, and
+      the disagreement set - not a stability label.
+
 ## Estate
 
 - [~] Bring the rest of the estate up to the wiring the conformance check
