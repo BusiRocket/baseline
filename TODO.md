@@ -18,18 +18,18 @@ verified complete - `[-]` obsolete or superseded.
       wired and `baseline-py check` is the only stage that runs.
 - [ ] Adopt the baseline in the remaining repositories, in the order the estate
       report argues: `atrium` (59 findings), then `agentmeter` and `clawd-pet`
-      (declare `source-roots = ["host/src"]` first), then `djplayerdeluxe`, then
-      `mempalace` with a recorded baseline. Each is its own reviewed change; see
-      `docs/reports/2026-08-31-python-estate-baseline.md`.
+      (declare `source-roots = ["host/src"]` first), then `djplayerdeluxe`. Each
+      is its own reviewed change; see
+      `docs/reports/2026-08-31-python-estate-baseline.md`. `mempalace` is out:
+      it is kept for reference only and is not ours to migrate (2026-09-01).
 - [-] qlcplus. Its checkout is a clone of upstream `mcallegari/qlcplus`, not a
   fork, and its only Python is one 675-line fixture tool. The config and its
   baseline live there untracked so `baseline-py check` works locally; nothing
   was committed, because it could never be pushed and would conflict on every
   pull.
-- [ ] Decide what to do about `mempalace`'s 402 inline-SQL findings before
-      touching them. Externalising the queries of a SQLite-backed memory palace
-      is a project, not a cleanup; the alternatives are a reasoned
-      `[[overrides]]` entry or a staged migration tracked in the baseline.
+- [-] Decide what to do about `mempalace`'s 402 inline-SQL findings. Superseded
+  2026-09-01: mempalace is kept for reference only, it is not ours, so it gets
+  no baseline adoption at all.
 - [ ] Wire `vulture` and `jscpd` into the gate as advisory stages, then decide
       from measurement whether either can block. Both were deliberately left out
       of v1: vulture's false positives on decorators and registries are
