@@ -106,3 +106,27 @@ def test_a_detached_head_keeps_main(tmp_path: Path) -> None:
     (tmp_path / ".git" / "HEAD").write_text("0123abcd\n", encoding="utf-8")
     rendered = render_asset(read_asset("baseline-py-ci.yml"), tmp_path)
     assert "branches: [main]" in rendered
+
+
+def test_a_nested_project_runs_its_workflow_from_its_directory(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    nested = tmp_path / "tools" / "qlctool"
+    nested.mkdir(parents=True)
+    rendered = render_asset(read_asset("baseline-py-ci.yml"), nested)
+    assert "working-directory: tools/qlctool" in rendered
+    assert "path: tools/qlctool/pyrefly.json" in rendered
+
+
+def test_a_nested_workflow_is_planned_at_the_repository_root(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    nested = tmp_path / "tools" / "qlctool"
+    nested.mkdir(parents=True)
+    (nested / "pyproject.toml").write_text('[project]\nname = "qlctool"\n', encoding="utf-8")
+    workflow = next(
+        managed.path
+        for managed in plan_init(nested, "lib", with_ci=True)
+        if ".github" in str(managed.path)
+    )
+    assert (
+        workflow.resolve() == (tmp_path / ".github" / "workflows" / "quality-qlctool.yml").resolve()
+    )
